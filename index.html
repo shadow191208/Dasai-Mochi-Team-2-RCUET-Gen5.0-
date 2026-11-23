@@ -1,0 +1,3428 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dasai Mochi DIY – Hướng dẫn tự làm robot mochi ESP32-C3 + OLED</title>
+  <meta name="description" content="Hướng dẫn tự làm robot Dasai Mochi bằng ESP32-C3 và màn hình OLED: chuẩn bị linh kiện, sơ đồ đấu nối, nạp firmware trên trình duyệt và kết nối điện thoại Chronos.">
+  <link rel="icon" type="image/png" href="images/favicon.png">
+
+  <!-- Google Fonts: Fraunces (Display) & Be Vietnam Pro (Body, Vietnamese + Latin-ext) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       1. HỆ THỐNG BIẾN MÀU & THIẾT KẾ (DỄ CHỈNH SỬA TẠI ĐÂY)
+       ========================================================================== */
+    :root {
+      /* 2 màu chủ đạo */
+      --ink: #14183A;
+      --cream: #FFF4E0;
+
+      /* Bảng màu phụ (mỗi nhóm nội dung 1 màu, luôn dùng chữ --ink để đạt WCAG AA >= 4.5:1) */
+      --pink: #FF8FB1;
+      --mint: #7FD8BE;
+      --peach: #FFB48A;
+      --lemon: #FFE27A;
+      --lavender: #B9A6FF;
+      --sky: #8CC8FF;
+      --matcha: #A8D672;
+      --coral: #FF6F6F;
+
+      /* Biến ngữ cảnh cho chế độ Sáng (mặc định) */
+      --bg: var(--cream);
+      --bg-alt: #FFF9EE;
+      --surface: #FFFFFF;
+      --surface-soft: #FBF0D9;
+      --text: var(--ink);
+      --text-muted: #3A3F66;
+      --border: var(--ink);
+      --shadow-color: var(--ink);
+      --badge-text: var(--ink);
+      --nav-bg: rgba(255, 244, 224, 0.92);
+      --dot-color: rgba(20, 24, 58, 0.08);
+
+      /* Typography */
+      --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+      --font-body: 'Be Vietnam Pro', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+      /* Bo góc & đổ bóng kiểu sticker */
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --border-w: 2.5px;
+      --shadow-sticker: 6px 6px 0 var(--shadow-color);
+      --shadow-sticker-sm: 4px 4px 0 var(--shadow-color);
+
+      --container-max: 1160px;
+      --nav-h: 72px;
+    }
+
+    /* Chế độ tối tự động theo hệ thống */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #14183A;
+        --bg-alt: #1A1F4A;
+        --surface: #1F2557;
+        --surface-soft: #282F6B;
+        --text: #FFF4E0;
+        --text-muted: #D5CEBE;
+        --border: #FFF4E0;
+        --shadow-color: #090B1F;
+        --nav-bg: rgba(20, 24, 58, 0.92);
+        --dot-color: rgba(255, 244, 224, 0.08);
+      }
+    }
+
+    /* Chế độ tối bật thủ công */
+    :root[data-theme="dark"] {
+      --bg: #14183A;
+      --bg-alt: #1A1F4A;
+      --surface: #1F2557;
+      --surface-soft: #282F6B;
+      --text: #FFF4E0;
+      --text-muted: #D5CEBE;
+      --border: #FFF4E0;
+      --shadow-color: #090B1F;
+      --nav-bg: rgba(20, 24, 58, 0.92);
+      --dot-color: rgba(255, 244, 224, 0.08);
+    }
+
+    /* ==========================================================================
+       2. RESET & BASE STYLES
+       ========================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: calc(var(--nav-h) + 20px);
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--text);
+      background-color: var(--bg);
+      background-image: radial-gradient(var(--dot-color) 1.5px, transparent 1.5px);
+      background-size: 20px 20px;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--coral);
+      outline-offset: 3px;
+      border-radius: 6px;
+    }
+
+    /* Skip Link cho trợ năng */
+    .skip-link {
+      position: fixed;
+      top: -100px;
+      left: 16px;
+      z-index: 2000;
+      background: var(--lemon);
+      color: var(--ink);
+      font-weight: 700;
+      padding: 12px 18px;
+      border: var(--border-w) solid var(--ink);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-sticker-sm);
+      text-decoration: none;
+      transition: top 0.2s ease;
+    }
+    .skip-link:focus {
+      top: 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: var(--container-max);
+      margin-inline: auto;
+      padding-inline: 20px;
+    }
+
+    /* ==========================================================================
+       3. TYPOGRAPHY & PIXEL DIVIDERS
+       ========================================================================== */
+    h1, h2, h3 {
+      margin-top: 0;
+      line-height: 1.2;
+      color: var(--text);
+    }
+
+    h1, h2, .section-num {
+      font-family: var(--font-display);
+      font-variation-settings: "SOFT" 100;
+    }
+
+    h1 {
+      font-size: clamp(2.1rem, 4.8vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      font-size: clamp(1.7rem, 3.4vw, 2.5rem);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    h3 {
+      font-size: clamp(1.1rem, 2vw, 1.28rem);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin-top: 0;
+      margin-bottom: 14px;
+    }
+
+    /* Đường ngăn cách họa tiết pixel giữa các section */
+    .pixel-divider {
+      height: 14px;
+      width: 100%;
+      background-image:
+        linear-gradient(90deg, var(--border) 0 10px, transparent 10px 20px),
+        linear-gradient(90deg, transparent 0 10px, var(--border) 10px 20px);
+      background-size: 20px 6px;
+      background-position: 0 0, 0 6px;
+      background-repeat: repeat-x;
+      opacity: 0.22;
+      margin: 0;
+    }
+
+    /* ==========================================================================
+       4. STICKER CARDS, BUTTONS & BADGES
+       ========================================================================== */
+    .sticker {
+      background: var(--surface);
+      border: var(--border-w) solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sticker);
+    }
+
+    .sticker-sm {
+      background: var(--surface);
+      border: var(--border-w) solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sticker-sm);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 46px;
+      padding: 11px 22px;
+      font-weight: 700;
+      text-decoration: none;
+      border: var(--border-w) solid var(--ink);
+      border-radius: 999px;
+      box-shadow: 4px 4px 0 var(--ink);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      white-space: nowrap;
+    }
+
+    :root[data-theme="dark"] .btn {
+      border-color: var(--cream);
+      box-shadow: 4px 4px 0 #090B1F;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) .btn {
+        border-color: var(--cream);
+        box-shadow: 4px 4px 0 #090B1F;
+      }
+    }
+
+    .btn:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 var(--ink);
+    }
+    .btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+
+    .btn-primary {
+      background: var(--pink);
+      color: var(--ink);
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .btn-accent-lemon {
+      background: var(--lemon);
+      color: var(--ink);
+    }
+
+    .btn-accent-mint {
+      background: var(--mint);
+      color: var(--ink);
+    }
+
+    .btn-accent-sky {
+      background: var(--sky);
+      color: var(--ink);
+    }
+
+    .btn-sm {
+      min-height: 44px;
+      padding: 8px 14px;
+      font-size: 0.9rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 13px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--ink);
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      background: var(--lemon);
+    }
+
+    /* Hộp cảnh báo nổi bật */
+    .callout {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 18px 20px;
+      border-radius: var(--radius-md);
+      border: var(--border-w) solid var(--ink);
+      box-shadow: 4px 4px 0 var(--ink);
+      color: var(--ink);
+      background: var(--lemon);
+      margin-bottom: 24px;
+    }
+    .callout--danger {
+      background: var(--coral);
+    }
+    .callout--info {
+      background: var(--sky);
+    }
+    .callout svg {
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .callout p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* ==========================================================================
+       5. HEADER & STICKY NAVBAR
+       ========================================================================== */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: var(--nav-bg);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: var(--border-w) solid var(--border);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: var(--nav-h);
+      gap: 12px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.2rem;
+      min-height: 44px;
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      object-fit: cover;
+      background: var(--ink);
+      flex-shrink: 0;
+    }
+
+    .nav-links {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .nav-links a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .nav-links a:hover,
+    .nav-links a[aria-current="true"] {
+      background: var(--lemon);
+      color: var(--ink);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0 12px;
+      border: 2px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 0.88rem;
+      box-shadow: 2px 2px 0 var(--shadow-color);
+    }
+    .icon-btn:hover {
+      background: var(--mint);
+      color: var(--ink);
+    }
+
+    .lang-toggle {
+      display: inline-flex;
+      align-items: center;
+      border: 2px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      padding: 2px;
+      min-height: 44px;
+      box-shadow: 2px 2px 0 var(--shadow-color);
+    }
+    .lang-toggle button {
+      border: none;
+      background: transparent;
+      padding: 6px 11px;
+      min-height: 36px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+    .lang-toggle button[aria-pressed="true"] {
+      background: var(--pink);
+      color: var(--ink);
+    }
+
+    /* Mobile drawer */
+    .mobile-menu {
+      display: none;
+      border-top: 2px solid var(--border);
+      background: var(--bg);
+      padding: 12px 20px 20px;
+    }
+    .mobile-menu.is-open {
+      display: block;
+    }
+    .mobile-menu ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .mobile-menu a {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 8px 14px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.92rem;
+    }
+    .mobile-menu a[aria-current="true"] {
+      background: var(--lemon);
+      color: var(--ink);
+    }
+
+    @media (min-width: 1024px) {
+      .nav-links {
+        display: flex;
+      }
+      .menu-toggle {
+        display: none;
+      }
+      .mobile-menu.is-open {
+        display: none;
+      }
+    }
+
+    /* ==========================================================================
+       6. HERO & KHUNG MÀN HÌNH OLED GIẢ
+       ========================================================================== */
+    .hero {
+      padding: 44px 0 56px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 36px;
+      align-items: center;
+    }
+
+    @media (min-width: 900px) {
+      .hero {
+        padding: 64px 0 76px;
+      }
+      .hero-grid {
+        grid-template-columns: 1.12fr 0.88fr;
+        gap: 48px;
+      }
+    }
+
+    .hero-subtitle {
+      font-size: clamp(1.04rem, 1.6vw, 1.18rem);
+      color: var(--text-muted);
+      margin-bottom: 26px;
+      max-width: 56ch;
+    }
+
+    .hero-cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+    }
+
+    /* Nhân vật chính: Khung màn hình OLED giả kiểu mũ bảo hiểm Mochi */
+    .mochi-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .mochi-shell {
+      width: 100%;
+      max-width: 410px;
+      background: var(--pink);
+      color: var(--ink);
+      border: 3px solid var(--ink);
+      border-radius: 36px;
+      padding: 20px 20px 18px;
+      box-shadow: 8px 8px 0 var(--shadow-color);
+      position: relative;
+    }
+
+    .mochi-shell-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .mochi-led {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .mochi-led-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--matcha);
+      border: 2px solid var(--ink);
+      display: inline-block;
+    }
+
+    .oled-bezel {
+      background: #0A0D1A;
+      border: 3px solid var(--ink);
+      border-radius: 22px;
+      padding: 14px;
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.8);
+    }
+
+    .oled-bezel::after {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border-radius: 14px;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 4px 4px;
+      pointer-events: none;
+    }
+
+    #oledCanvas {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 2 / 1;
+      display: block;
+      border-radius: 10px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .oled-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .oled-mood-label {
+      font-size: 0.88rem;
+      font-weight: 700;
+      background: var(--cream);
+      color: var(--ink);
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      padding: 6px 12px;
+    }
+
+    .oled-btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .oled-mini-btn {
+      min-height: 44px;
+      padding: 6px 14px;
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      background: var(--lemon);
+      color: var(--ink);
+      font-weight: 700;
+      font-size: 0.85rem;
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+    .oled-mini-btn[aria-pressed="true"] {
+      background: var(--ink);
+      color: var(--cream);
+    }
+
+    .hero-photo-strip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      max-width: 410px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sticker-sm);
+    }
+    .hero-photo-strip img {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      flex-shrink: 0;
+    }
+    .hero-photo-strip p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       7. SECTION CHUNG & STATS
+       ========================================================================== */
+    .section {
+      padding: 64px 0;
+    }
+
+    .section-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .section-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 68px;
+      height: 68px;
+      padding: 0 14px;
+      font-size: 1.9rem;
+      font-weight: 800;
+      color: var(--ink);
+      border: var(--border-w) solid var(--ink);
+      border-radius: 20px;
+      box-shadow: 4px 4px 0 var(--shadow-color);
+      line-height: 1;
+    }
+
+    .section-head-text {
+      flex: 1;
+      min-width: 240px;
+    }
+    .section-head-text p {
+      margin: 0;
+      color: var(--text-muted);
+      max-width: 62ch;
+    }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      padding: 22px;
+      border: var(--border-w) solid var(--ink);
+      border-radius: var(--radius-lg);
+      box-shadow: 5px 5px 0 var(--shadow-color);
+      color: var(--ink);
+    }
+
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: 2.3rem;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+
+    .stat-label {
+      font-weight: 600;
+      font-size: 0.96rem;
+      margin: 0;
+    }
+
+    /* Thư viện ảnh sản phẩm */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+    }
+
+    .media-frame {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius-lg);
+      border: var(--border-w) solid var(--border);
+      box-shadow: var(--shadow-sticker-sm);
+      background: var(--surface-soft);
+    }
+
+    .media-frame.is-clickable {
+      cursor: zoom-in;
+    }
+
+    .media-frame img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      transition: transform 0.25s ease;
+    }
+
+    .media-frame.is-clickable:hover img {
+      transform: scale(1.03);
+    }
+
+    /* Placeholder khi thiếu ảnh */
+    .img-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 8px;
+      padding: 20px 14px;
+      min-height: 180px;
+      width: 100%;
+      background-color: var(--surface-soft);
+      background-image:
+        linear-gradient(45deg, var(--dot-color) 25%, transparent 25%),
+        linear-gradient(-45deg, var(--dot-color) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, var(--dot-color) 75%),
+        linear-gradient(-45deg, transparent 75%, var(--dot-color) 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .img-placeholder code {
+      background: var(--lemon);
+      color: var(--ink);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1.5px solid var(--ink);
+      font-size: 0.78rem;
+      word-break: break-all;
+    }
+
+    /* ==========================================================================
+       8. 01 CHỨC NĂNG
+       ========================================================================== */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .feature-card {
+      padding: 22px;
+      border: var(--border-w) solid var(--ink);
+      border-radius: var(--radius-lg);
+      box-shadow: 5px 5px 0 var(--shadow-color);
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .feature-card h3 {
+      color: var(--ink);
+      margin: 0;
+    }
+
+    .feature-card p {
+      margin: 0;
+      font-size: 0.95rem;
+    }
+
+    .feature-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background: var(--cream);
+      border: 2px solid var(--ink);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ==========================================================================
+       9. 02 CẦN CHUẨN BỊ GÌ + TRÌNH CHỌN LINH KIỆN + BẢNG THIẾT BỊ CÓ ẢNH
+       ========================================================================== */
+    .picker-box {
+      padding: 24px;
+      margin-bottom: 32px;
+      background: var(--mint);
+      color: var(--ink);
+      border: var(--border-w) solid var(--ink);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sticker);
+    }
+
+    .picker-box h3 {
+      color: var(--ink);
+    }
+
+    .picker-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 16px 0 20px;
+    }
+
+    .picker-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 8px 16px;
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      background: var(--cream);
+      color: var(--ink);
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .picker-chip input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--ink);
+      cursor: pointer;
+    }
+
+    .picker-chip:has(input:checked) {
+      background: var(--lemon);
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+
+    .picker-result {
+      background: var(--cream);
+      color: var(--ink);
+      border: 2px solid var(--ink);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .picker-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .picker-tag {
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: var(--sky);
+      color: var(--ink);
+      border: 1.5px solid var(--ink);
+    }
+
+    .parts-group-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 28px 0 16px;
+      padding: 6px 16px;
+      border-radius: 999px;
+      border: 2px solid var(--ink);
+      background: var(--pink);
+      color: var(--ink);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .parts-group-title--opt {
+      background: var(--lavender);
+    }
+
+    .parts-table-wrap {
+      overflow-x: auto;
+      border: var(--border-w) solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sticker-sm);
+      background: var(--surface);
+    }
+
+    .parts-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 640px;
+    }
+
+    .parts-table th,
+    .parts-table td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1.5px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .parts-table th {
+      background: var(--surface-soft);
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+
+    .parts-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .part-thumb {
+      width: 76px;
+      height: 58px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      overflow: hidden;
+      background: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .part-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .part-thumb .img-placeholder {
+      min-height: 58px;
+      padding: 4px;
+      font-size: 0.65rem;
+    }
+
+    /* ==========================================================================
+       10. 03 SƠ ĐỒ ĐẤU NỐI (TABS)
+       ========================================================================== */
+    .tabs-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .tab-btn {
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 0.92rem;
+      box-shadow: 3px 3px 0 var(--shadow-color);
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+
+    .tab-btn[aria-selected="true"] {
+      background: var(--sky);
+      color: var(--ink);
+      border-color: var(--ink);
+      transform: translate(-1px, -1px);
+    }
+
+    .tab-panel {
+      padding: 24px;
+    }
+    .tab-panel[hidden] {
+      display: none;
+    }
+
+    .wiring-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (min-width: 820px) {
+      .wiring-grid {
+        grid-template-columns: 1.15fr 0.85fr;
+      }
+    }
+
+    .wiring-figure {
+      margin: 0;
+    }
+    .wiring-figure figcaption {
+      margin-top: 10px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pin-box {
+      background: var(--surface-soft);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+    }
+
+    .pin-box-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .pin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.94rem;
+    }
+    .pin-table th, .pin-table td {
+      padding: 8px 10px;
+      border-bottom: 1.5px dashed var(--border);
+      text-align: left;
+    }
+    .pin-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .pin-note {
+      margin-top: 12px;
+      font-size: 0.9rem;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--lemon);
+      color: var(--ink);
+      border: 1.5px solid var(--ink);
+    }
+
+    /* ==========================================================================
+       11. THANH TIẾN ĐỘ & CHECKLIST CÁC BƯỚC (04, 05, 06, 07)
+       ========================================================================== */
+    .progress-bar-card {
+      position: sticky;
+      top: calc(var(--nav-h) + 10px);
+      z-index: 500;
+      margin: 24px 0 8px;
+      padding: 14px 18px;
+      background: var(--surface);
+      border: var(--border-w) solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sticker-sm);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .progress-meta {
+      font-weight: 700;
+      font-size: 0.92rem;
+      white-space: nowrap;
+    }
+
+    .progress-track {
+      flex: 1;
+      min-width: 150px;
+      height: 16px;
+      border-radius: 999px;
+      border: 2px solid var(--border);
+      background: var(--surface-soft);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--matcha) 0 12px,
+        var(--mint) 12px 24px
+      );
+      transition: width 0.25s ease;
+    }
+
+    .step-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 18px 20px;
+      background: var(--surface);
+      border: var(--border-w) solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sticker-sm);
+      transition: background 0.15s ease;
+    }
+
+    .step-item.is-done {
+      background: var(--surface-soft);
+      opacity: 0.88;
+    }
+    .step-item.is-done .step-text {
+      text-decoration: line-through;
+    }
+
+    .step-check {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      margin-top: 2px;
+      accent-color: var(--ink);
+      cursor: pointer;
+    }
+
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      border-radius: 10px;
+      border: 2px solid var(--ink);
+      font-family: var(--font-display);
+      font-weight: 800;
+      color: var(--ink);
+      background: var(--lemon);
+    }
+
+    .step-body {
+      flex: 1;
+    }
+
+    .step-text {
+      margin: 0;
+      font-weight: 500;
+    }
+
+    /* Lưới ảnh nhỏ Chronos trong từng bước */
+    .step-shots {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .step-shots .media-frame img {
+      aspect-ratio: 9 / 16;
+      max-height: 220px;
+      object-fit: cover;
+    }
+
+    .sd-shots {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin-top: 24px;
+    }
+
+    /* ==========================================================================
+       12. FAQ ACCORDION & CỘNG ĐỒNG & FOOTER
+       ========================================================================== */
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .faq-item {
+      border: var(--border-w) solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      box-shadow: var(--shadow-sticker-sm);
+      overflow: hidden;
+    }
+
+    .faq-trigger {
+      width: 100%;
+      min-height: 54px;
+      padding: 16px 20px;
+      border: none;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 1.02rem;
+    }
+
+    .faq-trigger[aria-expanded="true"] {
+      background: var(--coral);
+      color: var(--ink);
+      border-bottom: 2px solid var(--ink);
+    }
+
+    .faq-icon {
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+    }
+    .faq-trigger[aria-expanded="true"] .faq-icon {
+      transform: rotate(45deg);
+    }
+
+    .faq-panel {
+      padding: 16px 20px;
+      color: var(--text-muted);
+    }
+    .faq-panel[hidden] {
+      display: none;
+    }
+
+    .community-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 18px;
+    }
+
+    .credit-card {
+      padding: 20px;
+      border: var(--border-w) solid var(--ink);
+      border-radius: var(--radius-lg);
+      box-shadow: 5px 5px 0 var(--shadow-color);
+      color: var(--ink);
+    }
+    .credit-card h3 {
+      color: var(--ink);
+    }
+    .credit-card a {
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .site-footer {
+      border-top: var(--border-w) solid var(--border);
+      background: var(--surface-soft);
+      padding: 36px 0 44px;
+      margin-top: 24px;
+      text-align: center;
+    }
+    .site-footer p {
+      margin: 6px 0;
+      font-size: 0.92rem;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
+       13. LIGHTBOX PHÓNG TO ẢNH
+       ========================================================================== */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 3000;
+      background: rgba(20, 24, 58, 0.88);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .lightbox[hidden] {
+      display: none;
+    }
+
+    .lightbox-dialog {
+      position: relative;
+      max-width: 960px;
+      width: 100%;
+      max-height: 90vh;
+      background: var(--surface);
+      border: 3px solid var(--cream);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 8px 8px 0 #090B1F;
+    }
+
+    .lightbox-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .lightbox-caption {
+      font-weight: 700;
+      font-size: 0.96rem;
+      margin: 0;
+    }
+
+    .lightbox-close {
+      min-width: 44px;
+      min-height: 44px;
+      border-radius: 999px;
+      border: 2px solid var(--ink);
+      background: var(--coral);
+      color: var(--ink);
+      font-weight: 800;
+      font-size: 1.2rem;
+    }
+
+    .lightbox-img-wrap {
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .lightbox-img-wrap img {
+      max-height: 74vh;
+      width: auto;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+    }
+
+    /* ==========================================================================
+       14. HIỆU ỨNG CUỘN & REDUCED MOTION
+       ========================================================================== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+    .reveal.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+      .reveal {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="skip-link" data-i18n="skip_link">Bỏ qua đến nội dung chính</a>
+
+  <!-- ===================== THANH ĐIỀU HƯỚNG ===================== -->
+  <header class="site-header">
+    <div class="container nav-inner">
+      <a href="#top" class="brand">
+        <img src="images/logo.png" alt="Logo Dasai Mochi DIY" data-i18n-alt="logo_alt" width="38" height="38" class="brand-logo" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex';">
+        <span aria-hidden="true" style="display:none;width:38px;height:38px;border-radius:10px;border:2px solid var(--border);background:var(--ink);color:var(--sky);align-items:center;justify-content:center;font-size:0.85rem;font-family:monospace;">^‿^</span>
+        <span>Dasai Mochi DIY</span>
+      </a>
+
+      <nav aria-label="Điều hướng chính" data-i18n-aria="nav_aria">
+        <ul class="nav-links" id="desktopNav">
+          <li><a href="#features" data-i18n="nav_features">Chức năng</a></li>
+          <li><a href="#prepare" data-i18n="nav_prepare">Linh kiện</a></li>
+          <li><a href="#wiring" data-i18n="nav_wiring">Sơ đồ</a></li>
+          <li><a href="#flash" data-i18n="nav_flash">Nạp firmware</a></li>
+          <li><a href="#config" data-i18n="nav_config">Cấu hình</a></li>
+          <li><a href="#chronos" data-i18n="nav_chronos">Chronos</a></li>
+          <li><a href="#advanced" data-i18n="nav_advanced">Thẻ nhớ</a></li>
+          <li><a href="#faq" data-i18n="nav_faq">FAQ</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-actions">
+        <div class="lang-toggle" role="group" aria-label="Chuyển ngôn ngữ" data-i18n-aria="lang_switch_aria">
+          <button type="button" id="btnLangVi" aria-pressed="true" data-lang="vi">VI</button>
+          <button type="button" id="btnLangEn" aria-pressed="false" data-lang="en">EN</button>
+        </div>
+
+        <button type="button" id="btnTheme" class="icon-btn" aria-label="Chuyển chế độ sáng/tối" data-i18n-aria="theme_toggle_aria">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+        </button>
+
+        <button type="button" id="btnMenu" class="icon-btn menu-toggle" aria-expanded="false" aria-controls="mobileMenu" aria-label="Mở menu" data-i18n-aria="menu_open_aria">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+            <line x1="4" y1="7" x2="20" y2="7"></line>
+            <line x1="4" y1="12" x2="20" y2="12"></line>
+            <line x1="4" y1="17" x2="20" y2="17"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="mobile-menu" id="mobileMenu">
+      <ul>
+        <li><a href="#features" data-i18n="nav_features">Chức năng</a></li>
+        <li><a href="#prepare" data-i18n="nav_prepare">Linh kiện</a></li>
+        <li><a href="#wiring" data-i18n="nav_wiring">Sơ đồ</a></li>
+        <li><a href="#flash" data-i18n="nav_flash">Nạp firmware</a></li>
+        <li><a href="#config" data-i18n="nav_config">Cấu hình</a></li>
+        <li><a href="#chronos" data-i18n="nav_chronos">Chronos</a></li>
+        <li><a href="#advanced" data-i18n="nav_advanced">Thẻ nhớ</a></li>
+        <li><a href="#faq" data-i18n="nav_faq">FAQ</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <!-- ===================== HERO ===================== -->
+    <section class="hero" id="top">
+      <div class="container hero-grid">
+        <div>
+          <span class="pill" style="background:var(--mint);margin-bottom:16px;" data-i18n="hero_badge">ESP32-C3 + OLED SSD1306 • DIY</span>
+          <h1 data-i18n="hero_title">Chú robot mochi biết biểu cảm ngay trên bàn của bạn.</h1>
+          <p class="hero-subtitle" data-i18n="hero_subtitle">Tự làm Dasai Mochi bằng ESP32-C3 và màn OLED. Hơn 80 biểu cảm, đồng hồ, thông báo điện thoại và chỉ đường, nạp firmware ngay trên trình duyệt.</p>
+          <div class="hero-cta">
+            <a href="#prepare" class="btn btn-primary" data-i18n="hero_cta_primary">Bắt đầu tự làm</a>
+            <a href="#features" class="btn btn-secondary" data-i18n="hero_cta_secondary">Xem chức năng</a>
+          </div>
+        </div>
+
+        <!-- Nhân vật chính: Khung màn hình OLED giả tương tác -->
+        <div class="mochi-stage">
+          <div class="mochi-shell">
+            <div class="mochi-shell-top">
+              <span class="mochi-led"><span class="mochi-led-dot"></span><span>THE MOCHI • OLED 128×64</span></span>
+              <span data-i18n="oled_tap_hint">Chạm để đổi mặt</span>
+            </div>
+            <div class="oled-bezel" id="oledBezel" role="button" tabindex="0" aria-label="Đổi biểu cảm trên màn hình OLED giả" data-i18n-aria="oled_aria">
+              <canvas id="oledCanvas" width="128" height="64"></canvas>
+            </div>
+            <div class="oled-controls">
+              <span class="oled-mood-label" id="oledMoodLabel">Bình thường</span>
+              <div class="oled-btn-group">
+                <button type="button" class="oled-mini-btn" id="btnOledNext" data-i18n="oled_next">Đổi mặt</button>
+                <button type="button" class="oled-mini-btn" id="btnOledInvert" aria-pressed="false" data-i18n="oled_invert">Âm bản</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-photo-strip" id="heroPhotoStrip">
+            <img src="images/hero-mochi.jpg" alt="Ảnh thật robot Dasai Mochi tự làm trên bàn làm việc" data-i18n-alt="hero_img_alt" width="64" height="64" onerror="document.getElementById('heroPhotoStrip').style.display='none';">
+            <p data-i18n="hero_photo_caption">Bản hoàn thiện đặt gọn trên góc bàn hoặc taplo xe.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="pixel-divider" aria-hidden="true"></div>
+
+    <!-- ===================== GIỚI THIỆU: 4 SỐ LIỆU NỔI BẬT ===================== -->
+    <section class="section" id="intro">
+      <div class="container">
+        <div class="stats-grid reveal">
+          <div class="stat-card" style="background:var(--pink);">
+            <div class="stat-value">80+</div>
+            <p class="stat-label" data-i18n="stat_1">Biểu cảm (kèm 80+ bản âm bản đảo màu)</p>
+          </div>
+          <div class="stat-card" style="background:var(--mint);">
+            <div class="stat-value" data-i18n="stat_2_val">3 bước</div>
+            <p class="stat-label" data-i18n="stat_2">Chuẩn bị → Nạp firmware → Cấu hình</p>
+          </div>
+          <div class="stat-card" style="background:var(--lemon);">
+            <div class="stat-value" data-i18n="stat_3_val">0 dòng code</div>
+            <p class="stat-label" data-i18n="stat_3">Nạp firmware trực tiếp trên Chrome/Edge</p>
+          </div>
+          <div class="stat-card" style="background:var(--sky);">
+            <div class="stat-value" data-i18n="stat_4_val">4+ sơ đồ</div>
+            <p class="stat-label" data-i18n="stat_4">Đấu nối rõ ràng từ cơ bản đến đầy đủ</p>
+          </div>
+        </div>
+
+        <div class="gallery-grid reveal">
+          <figure class="media-frame is-clickable" data-lightbox data-src="images/product-1.jpg" data-caption-key="prod_1_alt">
+            <img src="images/product-1.jpg" alt="Dasai Mochi hiển thị biểu cảm trên bàn" data-i18n-alt="prod_1_alt" width="400" height="300" loading="lazy" onerror="handleImgError(this, 'images/product-1.jpg')">
+          </figure>
+          <figure class="media-frame is-clickable" data-lightbox data-src="images/product-2.jpg" data-caption-key="prod_2_alt">
+            <img src="images/product-2.jpg" alt="Dasai Mochi hiển thị đồng hồ và thông báo" data-i18n-alt="prod_2_alt" width="400" height="300" loading="lazy" onerror="handleImgError(this, 'images/product-2.jpg')">
+          </figure>
+          <figure class="media-frame is-clickable" data-lightbox data-src="images/product-3.jpg" data-caption-key="prod_3_alt">
+            <img src="images/product-3.jpg" alt="Cận cảnh mạch ESP32-C3 và màn hình OLED" data-i18n-alt="prod_3_alt" width="400" height="300" loading="lazy" onerror="handleImgError(this, 'images/product-3.jpg')">
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <div class="pixel-divider" aria-hidden="true"></div>
+
+    <!-- ===================== 01 CHỨC NĂNG ===================== -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-num" style="background:var(--pink);">01</div>
+          <div class="section-head-text">
+            <h2 data-i18n="sec1_title">Chức năng nổi bật</h2>
+            <p data-i18n="sec1_desc">Nhỏ gọn bằng lòng bàn tay nhưng đủ trò vui: từ biểu cảm sinh động đến đồng hồ, thông báo và dẫn đường.</p>
+          </div>
+        </div>
+
+        <div class="features-grid reveal">
+          <article class="feature-card" style="background:var(--pink);">
+            <div class="feature-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>
+            <h3 data-i18n="feat_1_t">Biểu cảm</h3>
+            <p data-i18n="feat_1_d">Hơn 80 hiệu ứng chuyển động ngẫu nhiên, thêm hơn 80 bản âm bản (đảo màu). Chỉnh được tốc độ GIF và khoảng nghỉ giữa các GIF (0–60 giây, mặc định 5 giây).</p>
+          </article>
+
+          <article class="feature-card" style="background:var(--lemon);">
+            <div class="feature-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+            <h3 data-i18n="feat_2_t">Intro khởi động</h3>
+            <p data-i18n="feat_2_d">Chọn bất kỳ GIF nào bạn thích làm màn hình chào lúc mở máy.</p>
+          </article>
+
+          <article class="feature-card" style="background:var(--mint);">
+            <div class="feature-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></div>
+            <h3 data-i18n="feat_3_t">Âm thanh</h3>
+            <p data-i18n="feat_3_d">Chỉnh âm intro, thông báo, chạm, vuốt. Soạn nhạc riêng bằng buzzer, hoặc phát âm thanh thật bằng loa và mạch khuếch đại MAX98357.</p>
+          </article>
+
+          <article class="feature-card" style="background:var(--sky);">
+            <div class="feature-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v6"/><path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></div>
+            <h3 data-i18n="feat_4_t">Cảm biến chạm</h3>
+            <p data-i18n="feat_4_d">Chạm, vuốt hoặc bấm nút để điều khiển, gán chức năng theo kịch bản (bật/tắt Bluetooth, hiện đồng hồ, chuyển GIF kế tiếp).</p>
+          </article>
+
+          <article class="feature-card" style="background:var(--lavender);">
+            <div class="feature-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg></div>
+            <h3 data-i18n="feat_5_t">Đồng hồ</h3>
+            <p data-i18n="feat_5_d">Hiện giờ, ngày tháng, phần trăm pin điện thoại. Đồng hồ nội bộ vẫn chạy khi mất kết nối. Có thể hiện thời tiết (cần Chronos) và thông tin CPU (khi cắm máy tính chạy ứng dụng).</p>
+          </article>
+
+          <article class="feature-card" style="background:var(--matcha);">
+            <div class="feature-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></div>
+            <h3 data-i18n="feat_6_t">Dẫn đường Google Maps</h3>
+            <p data-i18n="feat_6_d">Hiện mũi tên hướng rẽ và thời gian di chuyển bằng biểu tượng lẫn văn bản ngay trên màn OLED.</p>
+          </article>
+
+          <article class="feature-card" style="background:var(--peach);">
+            <div class="feature-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+            <h3 data-i18n="feat_7_t">Thông báo</h3>
+            <p data-i18n="feat_7_d">Hiện tên người gọi, tin nhắn Zalo, Messenger và các app tự chọn, có xử lý riêng cho thông báo biến động số dư.</p>
+          </article>
+
+          <article class="feature-card" style="background:var(--coral);">
+            <div class="feature-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+            <h3 data-i18n="feat_8_t">Cá nhân hoá</h3>
+            <p data-i18n="feat_8_d">Bảng điều khiển trên web để đổi chân GPIO, chọn loại màn (0.96" hoặc 1.3"), lật ngược màn hình cho vừa vỏ, đổi ngôn ngữ.</p>
+          </article>
+
+          <article class="feature-card" style="background:var(--mint);">
+            <div class="feature-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="3"/><line x1="7" y1="9" x2="17" y2="9"/><line x1="7" y1="13" x2="13" y2="13"/></svg></div>
+            <h3 data-i18n="feat_9_t">Menu ẩn</h3>
+            <p data-i18n="feat_9_d">Chạm 3 lần liên tiếp để mở menu tích hợp. Chạm 1 lần để di chuyển, giữ để chọn, chạm để đổi giá trị.</p>
+          </article>
+
+          <article class="feature-card" style="background:var(--lemon);">
+            <div class="feature-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/><line x1="6" y1="11" x2="12" y2="11"/></svg></div>
+            <h3 data-i18n="feat_10_t">Tiết kiệm pin</h3>
+            <p data-i18n="feat_10_d">Tự động tắt Bluetooth sau X phút nếu không có kết nối để kéo dài thời gian dùng pin.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <div class="pixel-divider" aria-hidden="true"></div>
+
+    <!-- ===================== 02 CẦN CHUẨN BỊ GÌ ===================== -->
+    <section class="section" id="prepare">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-num" style="background:var(--mint);">02</div>
+          <div class="section-head-text">
+            <h2 data-i18n="sec2_title">Cần chuẩn bị gì?</h2>
+            <p data-i18n="sec2_desc">Chỉ cần 2 linh kiện chính là chạy được ngay. Tick chọn nhu cầu bên dưới để xem danh sách cần mua và sơ đồ tương ứng.</p>
+          </div>
+        </div>
+
+        <!-- Trình chọn linh kiện tương tác -->
+        <div class="picker-box reveal">
+          <h3 data-i18n="picker_title">Trình chọn linh kiện theo nhu cầu</h3>
+          <p style="margin-bottom:0;" data-i18n="picker_desc">Mặc định đã có ESP32-C3 Mini + màn OLED + cáp USB-C truyền dữ liệu. Chọn thêm tính năng bạn muốn:</p>
+
+          <div class="picker-options">
+            <label class="picker-chip"><input type="checkbox" id="optBattery"> <span data-i18n="opt_battery">Tôi muốn dùng pin</span></label>
+            <label class="picker-chip"><input type="checkbox" id="optBuzzer"> <span data-i18n="opt_buzzer">Âm thanh buzzer</span></label>
+            <label class="picker-chip"><input type="checkbox" id="optSpeaker"> <span data-i18n="opt_speaker">Âm thanh loa (MAX98357)</span></label>
+            <label class="picker-chip"><input type="checkbox" id="optTouch"> <span data-i18n="opt_touch">Cảm biến chạm (TTP223)</span></label>
+            <label class="picker-chip"><input type="checkbox" id="optSd"> <span data-i18n="opt_sd">Thẻ nhớ microSD</span></label>
+          </div>
+
+          <div class="picker-result" aria-live="polite">
+            <div>
+              <strong data-i18n="picker_needed_label">Danh sách cần mua:</strong>
+              <div class="picker-tags" id="pickerTags"></div>
+              <p style="margin:10px 0 0;font-size:0.92rem;" id="pickerAdvice"></p>
+            </div>
+            <button type="button" class="btn btn-accent-sky btn-sm" id="btnJumpWiring" data-i18n="picker_jump_btn">Xem sơ đồ phù hợp →</button>
+          </div>
+        </div>
+
+        <!-- Nhóm BẮT BUỘC -->
+        <h3 class="parts-group-title" data-i18n="parts_req_title">Bắt buộc (4 món)</h3>
+        <div class="parts-table-wrap reveal">
+          <table class="parts-table">
+            <thead>
+              <tr>
+                <th data-i18n="th_img">Hình ảnh</th>
+                <th data-i18n="th_part">Linh kiện</th>
+                <th data-i18n="th_note">Ghi chú cho người mới</th>
+                <th data-i18n="th_buy">Tìm mua</th>
+              </tr>
+            </thead>
+            <tbody id="partsRequiredBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Nhóm TUỲ CHỌN -->
+        <h3 class="parts-group-title parts-group-title--opt" data-i18n="parts_opt_title">Tuỳ chọn nâng cấp (6 món)</h3>
+        <div class="parts-table-wrap reveal">
+          <table class="parts-table">
+            <thead>
+              <tr>
+                <th data-i18n="th_img">Hình ảnh</th>
+                <th data-i18n="th_part">Linh kiện</th>
+                <th data-i18n="th_note">Công dụng & lưu ý</th>
+                <th data-i18n="th_buy">Tìm mua</th>
+              </tr>
+            </thead>
+            <tbody id="partsOptionalBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <div class="pixel-divider" aria-hidden="true"></div>
+
+    <!-- ===================== 03 SƠ ĐỒ ĐẤU NỐI ===================== -->
+    <section class="section" id="wiring">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-num" style="background:var(--sky);">03</div>
+          <div class="section-head-text">
+            <h2 data-i18n="sec3_title">Sơ đồ đấu nối</h2>
+            <p data-i18n="sec3_desc">Bấm vào ảnh để phóng to. Dùng phím mũi tên Trái/Phải để chuyển nhanh giữa các tab sơ đồ.</p>
+          </div>
+        </div>
+
+        <div class="callout callout--danger reveal" role="alert">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <strong data-i18n="wiring_warn_title">Lưu ý quan trọng về chân GPIO:</strong>
+            <p data-i18n="wiring_warn_body">Ngoài VCC và GND, các chân khác có thể đổi lại trong trang thiết lập. Tuyệt đối KHÔNG dùng GPIO0.</p>
+          </div>
+        </div>
+
+        <div class="tabs-nav" role="tablist" aria-label="Các sơ đồ đấu nối" data-i18n-aria="wiring_tabs_aria" id="wiringTablist">
+          <button type="button" class="tab-btn" role="tab" id="tab-0" aria-selected="true" aria-controls="panel-0" tabindex="0" data-i18n="tab_0">1. Mạch cơ bản</button>
+          <button type="button" class="tab-btn" role="tab" id="tab-1" aria-selected="false" aria-controls="panel-1" tabindex="-1" data-i18n="tab_1">2. Pin & TP4056</button>
+          <button type="button" class="tab-btn" role="tab" id="tab-2" aria-selected="false" aria-controls="panel-2" tabindex="-1" data-i18n="tab_2">3. Chạm & Buzzer</button>
+          <button type="button" class="tab-btn" role="tab" id="tab-3" aria-selected="false" aria-controls="panel-3" tabindex="-1" data-i18n="tab_3">4. Tổng hợp Buzzer</button>
+          <button type="button" class="tab-btn" role="tab" id="tab-4" aria-selected="false" aria-controls="panel-4" tabindex="-1" data-i18n="tab_4">5. Tổng hợp Loa MAX98357</button>
+          <button type="button" class="tab-btn" role="tab" id="tab-5" aria-selected="false" aria-controls="panel-5" tabindex="-1" data-i18n="tab_5">6. Loa + microSD</button>
+        </div>
+
+        <!-- Tab 1 -->
+        <div class="sticker tab-panel" role="tabpanel" id="panel-0" aria-labelledby="tab-0">
+          <div class="wiring-grid">
+            <figure class="wiring-figure">
+              <div class="media-frame is-clickable" data-lightbox data-src="images/wiring-0-basic.png" data-caption-key="tab_0">
+                <img src="images/wiring-0-basic.png" alt="Sơ đồ mạch cơ bản ESP32-C3 và OLED" data-i18n-alt="w0_alt" width="600" height="450" loading="lazy" onerror="handleImgError(this, 'images/wiring-0-basic.png')">
+              </div>
+              <figcaption><span data-i18n="zoom_hint">Bấm vào ảnh để phóng to</span></figcaption>
+            </figure>
+            <div class="pin-box">
+              <div class="pin-box-head">
+                <h3 style="margin:0;" data-i18n="pin_table_title">Bảng chân nối</h3>
+                <button type="button" class="btn btn-sm btn-accent-lemon btn-copy" data-copy-target="pins-0" data-i18n="copy_btn">Sao chép</button>
+              </div>
+              <table class="pin-table" id="pins-0">
+                <thead><tr><th>OLED</th><th>ESP32-C3</th></tr></thead>
+                <tbody>
+                  <tr><td>VCC</td><td>3.3V</td></tr>
+                  <tr><td>GND</td><td>GND</td></tr>
+                  <tr><td>SCL</td><td>GPIO 21</td></tr>
+                  <tr><td>SDA</td><td>GPIO 20</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2 -->
+        <div class="sticker tab-panel" role="tabpanel" id="panel-1" aria-labelledby="tab-1" hidden>
+          <div class="wiring-grid">
+            <figure class="wiring-figure">
+              <div class="media-frame is-clickable" data-lightbox data-src="images/wiring-1-battery.png" data-caption-key="tab_1">
+                <img src="images/wiring-1-battery.png" alt="Sơ đồ nối pin 3.7V với mạch sạc TP4056 và ESP32-C3" data-i18n-alt="w1_alt" width="600" height="450" loading="lazy" onerror="handleImgError(this, 'images/wiring-1-battery.png')">
+              </div>
+              <figcaption><span data-i18n="zoom_hint">Bấm vào ảnh để phóng to</span></figcaption>
+            </figure>
+            <div class="pin-box">
+              <div class="pin-box-head">
+                <h3 style="margin:0;" data-i18n="pin_table_title">Bảng chân nối</h3>
+                <button type="button" class="btn btn-sm btn-accent-lemon btn-copy" data-copy-target="pins-1" data-i18n="copy_btn">Sao chép</button>
+              </div>
+              <table class="pin-table" id="pins-1">
+                <thead><tr><th data-i18n="pin_from">Từ</th><th data-i18n="pin_to">Đến</th></tr></thead>
+                <tbody>
+                  <tr><td data-i18n="w1_r1_a">Pin (+)</td><td>TP4056 B+</td></tr>
+                  <tr><td data-i18n="w1_r2_a">Pin (-)</td><td>TP4056 B-</td></tr>
+                  <tr><td>TP4056 Out+</td><td data-i18n="w1_r3_b">ESP32-C3 5V (hoặc Vin)</td></tr>
+                  <tr><td>TP4056 Out-</td><td>ESP32-C3 GND</td></tr>
+                </tbody>
+              </table>
+              <div class="pin-note" data-i18n="w1_note">Đấu đúng cực (+) và (-). Có thể lắp thêm công tắc gạt trên đường nguồn Out+ để bật/tắt máy.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3 -->
+        <div class="sticker tab-panel" role="tabpanel" id="panel-2" aria-labelledby="tab-2" hidden>
+          <div class="wiring-grid">
+            <figure class="wiring-figure">
+              <div class="media-frame is-clickable" data-lightbox data-src="images/wiring-2-touch-buzzer.png" data-caption-key="tab_2">
+                <img src="images/wiring-2-touch-buzzer.png" alt="Sơ đồ nối cảm biến chạm TTP223 và loa buzzer" data-i18n-alt="w2_alt" width="600" height="450" loading="lazy" onerror="handleImgError(this, 'images/wiring-2-touch-buzzer.png')">
+              </div>
+              <figcaption><span data-i18n="zoom_hint">Bấm vào ảnh để phóng to</span></figcaption>
+            </figure>
+            <div class="pin-box">
+              <div class="pin-box-head">
+                <h3 style="margin:0;" data-i18n="pin_table_title">Bảng chân nối</h3>
+                <button type="button" class="btn btn-sm btn-accent-lemon btn-copy" data-copy-target="pins-2" data-i18n="copy_btn">Sao chép</button>
+              </div>
+              <table class="pin-table" id="pins-2">
+                <thead><tr><th data-i18n="pin_comp">Linh kiện</th><th>ESP32-C3</th></tr></thead>
+                <tbody>
+                  <tr><td>TTP223 VCC / GND</td><td>3.3V / GND</td></tr>
+                  <tr><td>TTP223 OUT</td><td data-i18n="w2_ttp_out">GPIO 1 (hoặc GPIO input bất kỳ)</td></tr>
+                  <tr><td>Buzzer VCC / GND</td><td>3.3V / GND</td></tr>
+                  <tr><td>Buzzer IN</td><td data-i18n="w2_buz_in">1 chân GPIO xuất PWM (chọn trong thiết lập)</td></tr>
+                </tbody>
+              </table>
+              <div class="pin-note" data-i18n="w2_note">Làm theo sơ đồ gốc là 3.3V. Nếu buzzer của bạn ghi 5V thì kiểm tra thông số trước khi cấp nguồn.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4 -->
+        <div class="sticker tab-panel" role="tabpanel" id="panel-3" aria-labelledby="tab-3" hidden>
+          <div class="wiring-grid">
+            <figure class="wiring-figure">
+              <div class="media-frame is-clickable" data-lightbox data-src="images/wiring-3-full-buzzer.png" data-caption-key="tab_3">
+                <img src="images/wiring-3-full-buzzer.png" alt="Sơ đồ mạch tổng hợp dùng buzzer" data-i18n-alt="w3_alt" width="600" height="450" loading="lazy" onerror="handleImgError(this, 'images/wiring-3-full-buzzer.png')">
+              </div>
+              <figcaption>
+                <span data-i18n="zoom_hint">Bấm vào ảnh để phóng to</span>
+                <strong data-i18n="credit_vanhung">Hình do bạn Văn Hưng vẽ</strong>
+              </figcaption>
+            </figure>
+            <div class="pin-box">
+              <h3 data-i18n="tab_3">4. Tổng hợp Buzzer</h3>
+              <p data-i18n="see_diagram_pins">Xem chi tiết chân nối trong sơ đồ. Bấm vào hình bên cạnh để phóng to từng đường dây.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 5 -->
+        <div class="sticker tab-panel" role="tabpanel" id="panel-4" aria-labelledby="tab-4" hidden>
+          <div class="wiring-grid">
+            <figure class="wiring-figure">
+              <div class="media-frame is-clickable" data-lightbox data-src="images/wiring-4-full-amp.jpg" data-caption-key="tab_4">
+                <img src="images/wiring-4-full-amp.jpg" alt="Sơ đồ mạch tổng hợp dùng loa và mạch khuếch đại MAX98357" data-i18n-alt="w4_alt" width="600" height="450" loading="lazy" onerror="handleImgError(this, 'images/wiring-4-full-amp.jpg')">
+              </div>
+              <figcaption>
+                <span data-i18n="zoom_hint">Bấm vào ảnh để phóng to</span>
+                <strong data-i18n="credit_vanhung">Hình do bạn Văn Hưng vẽ</strong>
+              </figcaption>
+            </figure>
+            <div class="pin-box">
+              <h3 data-i18n="tab_4">5. Tổng hợp Loa MAX98357</h3>
+              <p data-i18n="see_diagram_pins">Xem chi tiết chân nối trong sơ đồ. Bấm vào hình bên cạnh để phóng to từng đường dây.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 6 -->
+        <div class="sticker tab-panel" role="tabpanel" id="panel-5" aria-labelledby="tab-5" hidden>
+          <div class="wiring-grid">
+            <figure class="wiring-figure">
+              <div class="media-frame is-clickable" data-lightbox data-src="images/wiring-5-full-sd.jpg" data-caption-key="tab_5">
+                <img src="images/wiring-5-full-sd.jpg" alt="Sơ đồ mạch tổng hợp dùng loa MAX98357 và module microSD" data-i18n-alt="w5_alt" width="600" height="450" loading="lazy" onerror="handleImgError(this, 'images/wiring-5-full-sd.jpg')">
+              </div>
+              <figcaption>
+                <span data-i18n="zoom_hint">Bấm vào ảnh để phóng to</span>
+                <strong data-i18n="credit_nhandata">Hình do bạn Nhân Data vẽ</strong>
+              </figcaption>
+            </figure>
+            <div class="pin-box">
+              <h3 data-i18n="tab_5">6. Loa + microSD</h3>
+              <p data-i18n="see_diagram_pins">Xem chi tiết chân nối trong sơ đồ. Bấm vào hình bên cạnh để phóng to từng đường dây.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="pixel-divider" aria-hidden="true"></div>
+
+    <!-- ===================== THANH TIẾN ĐỘ TỔNG (PHẦN 04 - 07) ===================== -->
+    <div class="container">
+      <div class="progress-bar-card" role="region" aria-label="Tiến độ thực hiện" data-i18n-aria="progress_aria">
+        <span class="progress-meta" id="progressText">Tiến độ: 0/23 bước (0%)</span>
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <button type="button" class="btn btn-sm btn-secondary" id="btnResetProgress" data-i18n="progress_reset">Làm lại từ đầu</button>
+      </div>
+    </div>
+
+    <!-- ===================== 04 NẠP FIRMWARE ===================== -->
+    <section class="section" id="flash">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-num" style="background:var(--lemon);">04</div>
+          <div class="section-head-text">
+            <h2 data-i18n="sec4_title">Nạp firmware trên trình duyệt</h2>
+            <p data-i18n="sec4_desc">Không cần cài phần mềm hay viết code. Thực hiện đúng 5 bước sau trên Chrome hoặc Edge.</p>
+          </div>
+        </div>
+
+        <ol class="step-list reveal">
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="f1" aria-label="Hoàn thành bước 1"><span class="step-badge">1</span><div class="step-body"><p class="step-text" data-i18n="f_s1">KHÔNG cắm cáp vội. Quan sát trên board ESP32-C3 có 2 nút nhỏ cạnh cổng Type-C: RST và BOOT.</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="f2" aria-label="Hoàn thành bước 2"><span class="step-badge">2</span><div class="step-body"><p class="step-text" data-i18n="f_s2">Nhấn giữ nút BOOT, vừa giữ vừa cắm cáp từ board vào máy tính (vào chế độ nạp).</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="f3" aria-label="Hoàn thành bước 3"><span class="step-badge">3</span><div class="step-body"><p class="step-text" data-i18n="f_s3">Mở công cụ nạp firmware ở trang gốc của dự án và chọn phiên bản được khuyến nghị.</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="f4" aria-label="Hoàn thành bước 4"><span class="step-badge">4</span><div class="step-body"><p class="step-text" data-i18n="f_s4">Bấm "Nạp Firmware", chọn đúng cổng COM đang hiện, rồi chọn "Install firmware".</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="f5" aria-label="Hoàn thành bước 5"><span class="step-badge">5</span><div class="step-body"><p class="step-text" data-i18n="f_s5">Chờ vài phút cho đến khi trình duyệt báo hoàn tất (100%).</p></div></li>
+        </ol>
+
+        <div style="margin-top:24px;">
+          <a href="https://themochi.huykhong.com/" target="_blank" rel="noopener noreferrer" class="btn btn-accent-lemon" data-i18n="flash_cta">Mở công cụ nạp firmware ↗</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="pixel-divider" aria-hidden="true"></div>
+
+    <!-- ===================== 05 CẤU HÌNH THE MOCHI ===================== -->
+    <section class="section" id="config">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-num" style="background:var(--matcha);">05</div>
+          <div class="section-head-text">
+            <h2 data-i18n="sec5_title">Cấu hình The Mochi</h2>
+            <p data-i18n="sec5_desc">Tuỳ chỉnh chân GPIO, kích thước màn hình, âm thanh và kịch bản chạm trực quan trên web.</p>
+          </div>
+        </div>
+
+        <ol class="step-list reveal">
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="c1" aria-label="Hoàn thành bước 1"><span class="step-badge" style="background:var(--matcha);">1</span><div class="step-body"><p class="step-text" data-i18n="c_s1">Sau khi nạp xong, ĐÓNG tab trang nạp firmware để không chiếm cổng COM.</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="c2" aria-label="Hoàn thành bước 2"><span class="step-badge" style="background:var(--matcha);">2</span><div class="step-body"><p class="step-text"><span data-i18n="c_s2">Mở trang thiết lập:</span> <a href="https://themochi.huykhong.com/thietlap" target="_blank" rel="noopener noreferrer" style="font-weight:700;">themochi.huykhong.com/thietlap ↗</a></p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="c3" aria-label="Hoàn thành bước 3"><span class="step-badge" style="background:var(--matcha);">3</span><div class="step-body"><p class="step-text" data-i18n="c_s3">Bấm "Kết nối the Mochi", chọn đúng cổng COM như lúc nạp, nhưng KHÔNG cần giữ nút BOOT.</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="c4" aria-label="Hoàn thành bước 4"><span class="step-badge" style="background:var(--matcha);">4</span><div class="step-body"><p class="step-text" data-i18n="c_s4">Chờ vài giây (từ phiên bản 4 trở lên) để giao diện thiết lập tải xong.</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="c5" aria-label="Hoàn thành bước 5"><span class="step-badge" style="background:var(--matcha);">5</span><div class="step-body"><p class="step-text" data-i18n="c_s5">Chỉnh chân GPIO, loại màn OLED (0.96" hoặc 1.3"), âm thanh, GIF và kịch bản chạm theo ý thích.</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="c6" aria-label="Hoàn thành bước 6"><span class="step-badge" style="background:var(--matcha);">6</span><div class="step-body"><p class="step-text" data-i18n="c_s6">Bấm "Lưu thiết lập" trước khi rút cáp hoặc khởi động lại board.</p></div></li>
+        </ol>
+
+        <div class="callout reveal" style="margin-top:22px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div>
+            <strong data-i18n="c_warn_title">Đừng quên lưu!</strong>
+            <p data-i18n="c_warn_body">Thay đổi có hiệu lực ngay trên màn hình để bạn xem thử, nhưng bắt buộc phải bấm "Lưu thiết lập", nếu không mọi thứ sẽ trở về mặc định khi reset.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="pixel-divider" aria-hidden="true"></div>
+
+    <!-- ===================== 06 KẾT NỐI ĐIỆN THOẠI VỚI CHRONOS ===================== -->
+    <section class="section" id="chronos">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-num" style="background:var(--lavender);">06</div>
+          <div class="section-head-text">
+            <h2 data-i18n="sec6_title">Kết nối điện thoại với Chronos (chỉ Android)</h2>
+            <p data-i18n="sec6_desc">Đồng bộ giờ, thời tiết, thông báo ứng dụng và chỉ đường Google Maps qua Bluetooth LE.</p>
+          </div>
+        </div>
+
+        <ol class="step-list reveal">
+          <li class="step-item">
+            <input type="checkbox" class="step-check" data-step="ch1" aria-label="Hoàn thành bước 1">
+            <span class="step-badge" style="background:var(--lavender);">1</span>
+            <div class="step-body">
+              <p class="step-text" data-i18n="ch_s1">Cài ứng dụng "Chronos" của tác giả fbiego trên Google Play.</p>
+              <div class="step-shots">
+                <figure class="media-frame is-clickable" data-lightbox data-src="images/chronos-1.png" data-caption-key="ch_img_1"><img src="images/chronos-1.png" alt="Cài đặt ứng dụng Chronos" data-i18n-alt="ch_img_1" width="180" height="320" loading="lazy" onerror="handleImgError(this, 'images/chronos-1.png')"></figure>
+              </div>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <input type="checkbox" class="step-check" data-step="ch2" aria-label="Hoàn thành bước 2">
+            <span class="step-badge" style="background:var(--lavender);">2</span>
+            <div class="step-body">
+              <p class="step-text" data-i18n="ch_s2">Ở tab Đồng hồ, bấm "Tìm kiếm" (hoặc "Quét QR"), sau đó chọn thiết bị "The Mochi" trong danh sách.</p>
+              <div class="step-shots">
+                <figure class="media-frame is-clickable" data-lightbox data-src="images/chronos-2.png" data-caption-key="ch_img_2"><img src="images/chronos-2.png" alt="Bấm tìm kiếm thiết bị trong Chronos" data-i18n-alt="ch_img_2" width="180" height="320" loading="lazy" onerror="handleImgError(this, 'images/chronos-2.png')"></figure>
+                <figure class="media-frame is-clickable" data-lightbox data-src="images/chronos-3.png" data-caption-key="ch_img_3"><img src="images/chronos-3.png" alt="Chọn thiết bị The Mochi" data-i18n-alt="ch_img_3" width="180" height="320" loading="lazy" onerror="handleImgError(this, 'images/chronos-3.png')"></figure>
+              </div>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <input type="checkbox" class="step-check" data-step="ch3" aria-label="Hoàn thành bước 3">
+            <span class="step-badge" style="background:var(--lavender);">3</span>
+            <div class="step-body">
+              <p class="step-text" data-i18n="ch_s3">Bấm "Cho phép truy cập" để Chronos đọc thông báo; bạn có thể bấm "Tự kiểm tra", rồi chọn "Bỏ qua thiết lập".</p>
+              <div class="step-shots">
+                <figure class="media-frame is-clickable" data-lightbox data-src="images/chronos-4.png" data-caption-key="ch_img_4"><img src="images/chronos-4.png" alt="Cấp quyền truy cập thông báo cho Chronos" data-i18n-alt="ch_img_4" width="180" height="320" loading="lazy" onerror="handleImgError(this, 'images/chronos-4.png')"></figure>
+                <figure class="media-frame is-clickable" data-lightbox data-src="images/chronos-5.png" data-caption-key="ch_img_5"><img src="images/chronos-5.png" alt="Bỏ qua thiết lập ban đầu" data-i18n-alt="ch_img_5" width="180" height="320" loading="lazy" onerror="handleImgError(this, 'images/chronos-5.png')"></figure>
+              </div>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <input type="checkbox" class="step-check" data-step="ch4" aria-label="Hoàn thành bước 4">
+            <span class="step-badge" style="background:var(--lavender);">4</span>
+            <div class="step-body">
+              <p class="step-text" data-i18n="ch_s4">Bật dẫn đường: tab Đồng hồ → cuộn xuống "Trình quản lý ESP32" → bật công tắc "Điều hướng". Sau đó mở Google Maps và bắt đầu chỉ đường.</p>
+              <div class="step-shots">
+                <figure class="media-frame is-clickable" data-lightbox data-src="images/chronos-6.png" data-caption-key="ch_img_6"><img src="images/chronos-6.png" alt="Mở mục Trình quản lý ESP32" data-i18n-alt="ch_img_6" width="180" height="320" loading="lazy" onerror="handleImgError(this, 'images/chronos-6.png')"></figure>
+                <figure class="media-frame is-clickable" data-lightbox data-src="images/chronos-7.png" data-caption-key="ch_img_7"><img src="images/chronos-7.png" alt="Bật công tắc Điều hướng Google Maps" data-i18n-alt="ch_img_7" width="180" height="320" loading="lazy" onerror="handleImgError(this, 'images/chronos-7.png')"></figure>
+              </div>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <input type="checkbox" class="step-check" data-step="ch5" aria-label="Hoàn thành bước 5">
+            <span class="step-badge" style="background:var(--lavender);">5</span>
+            <div class="step-body">
+              <p class="step-text" data-i18n="ch_s5">Bật thông báo: tab Thông báo → bật "Gọi" và "Tin nhắn" → mục "Ứng dụng" chỉ tick app thật sự cần (tránh nhiễu) → chỉnh "Biểu tượng thông báo" → bấm "Tự kiểm tra" để gửi thử.</p>
+              <div class="step-shots">
+                <figure class="media-frame is-clickable" data-lightbox data-src="images/chronos-8.png" data-caption-key="ch_img_8"><img src="images/chronos-8.png" alt="Bật thông báo Gọi và Tin nhắn" data-i18n-alt="ch_img_8" width="180" height="320" loading="lazy" onerror="handleImgError(this, 'images/chronos-8.png')"></figure>
+                <figure class="media-frame is-clickable" data-lightbox data-src="images/chronos-9.png" data-caption-key="ch_img_9"><img src="images/chronos-9.png" alt="Chọn ứng dụng nhận thông báo" data-i18n-alt="ch_img_9" width="180" height="320" loading="lazy" onerror="handleImgError(this, 'images/chronos-9.png')"></figure>
+                <figure class="media-frame is-clickable" data-lightbox data-src="images/chronos-11.png" data-caption-key="ch_img_11"><img src="images/chronos-11.png" alt="Cài đặt Biểu tượng thông báo" data-i18n-alt="ch_img_11" width="180" height="320" loading="lazy" onerror="handleImgError(this, 'images/chronos-11.png')"></figure>
+                <figure class="media-frame is-clickable" data-lightbox data-src="images/chronos-12.png" data-caption-key="ch_img_12"><img src="images/chronos-12.png" alt="Gửi thử thông báo bằng Tự kiểm tra" data-i18n-alt="ch_img_12" width="180" height="320" loading="lazy" onerror="handleImgError(this, 'images/chronos-12.png')"></figure>
+              </div>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <input type="checkbox" class="step-check" data-step="ch6" aria-label="Hoàn thành bước 6">
+            <span class="step-badge" style="background:var(--lavender);">6</span>
+            <div class="step-body"><p class="step-text" data-i18n="ch_s6">Dùng chức năng "Tìm đồng hồ" trong Chronos để hiện nhanh giờ, phần trăm pin điện thoại hoặc biểu cảm trên Mochi.</p></div>
+          </li>
+        </ol>
+
+        <div class="callout callout--info reveal" style="margin-top:22px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <p data-i18n="ch_note">Lưu ý: Tốc độ cập nhật chỉ đường phụ thuộc vào độ trễ thông báo của điện thoại và chất lượng kết nối Bluetooth LE.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="pixel-divider" aria-hidden="true"></div>
+
+    <!-- ===================== 07 NÂNG CAO: GIF & THẺ NHỚ ===================== -->
+    <section class="section" id="advanced">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-num" style="background:var(--peach);">07</div>
+          <div class="section-head-text">
+            <h2 data-i18n="sec7_title">Nâng cao: GIF & âm thanh riêng bằng thẻ nhớ</h2>
+            <p data-i18n="sec7_desc">Tự tạo bộ biểu cảm và nhạc chuông độc quyền bằng module microSD.</p>
+          </div>
+        </div>
+
+        <ol class="step-list reveal">
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="a1" aria-label="Hoàn thành bước 1"><span class="step-badge" style="background:var(--peach);">1</span><div class="step-body"><p class="step-text"><span data-i18n="a_s1">Mở GIF Maker:</span> <a href="https://themochi.huykhong.com/gif.html" target="_blank" rel="noopener noreferrer" style="font-weight:700;">themochi.huykhong.com/gif.html ↗</a> <span data-i18n="a_s1_b">rồi kéo thả file GIF và file âm thanh vào.</span></p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="a2" aria-label="Hoàn thành bước 2"><span class="step-badge" style="background:var(--peach);">2</span><div class="step-body"><p class="step-text" data-i18n="a_s2">Chỉnh thông số hiển thị. GIF ít khung hình sẽ chạy mượt nhất, video quá dài có thể bị giật.</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="a3" aria-label="Hoàn thành bước 3"><span class="step-badge" style="background:var(--peach);">3</span><div class="step-body"><p class="step-text" data-i18n="a_s3">Chọn "Convert to BIN", sau đó chọn "Export to GIF". Công cụ sẽ tạo ra một thư mục xuất.</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="a4" aria-label="Hoàn thành bước 4"><span class="step-badge" style="background:var(--peach);">4</span><div class="step-body"><p class="step-text" data-i18n="a_s4">Chép thư mục vừa xuất vào thẻ nhớ microSD, đặt bên trong thư mục "gifs/" (tạo mới nếu chưa có).</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="a5" aria-label="Hoàn thành bước 5"><span class="step-badge" style="background:var(--peach);">5</span><div class="step-body"><p class="step-text" data-i18n="a_s5">Cắm thẻ nhớ vào thiết bị. Danh sách chủ đề GIF sẽ tự hiện trong phần kịch bản của trang thiết lập.</p></div></li>
+          <li class="step-item"><input type="checkbox" class="step-check" data-step="a6" aria-label="Hoàn thành bước 6"><span class="step-badge" style="background:var(--peach);">6</span><div class="step-body"><p class="step-text" data-i18n="a_s6">Chỉ tick tuỳ chọn "Dùng thẻ nhớ" khi ĐÃ cắm thẻ, nếu không thiết bị có thể bị treo.</p></div></li>
+        </ol>
+
+        <div class="sd-shots reveal">
+          <figure class="wiring-figure">
+            <div class="media-frame is-clickable" data-lightbox data-src="images/sd-card-1.png" data-caption-key="sd_1_alt">
+              <img src="images/sd-card-1.png" alt="Cấu trúc thư mục gifs trên thẻ nhớ microSD" data-i18n-alt="sd_1_alt" width="500" height="340" loading="lazy" onerror="handleImgError(this, 'images/sd-card-1.png')">
+            </div>
+            <figcaption data-i18n="sd_1_alt">Cấu trúc thư mục gifs/ trên thẻ nhớ microSD</figcaption>
+          </figure>
+          <figure class="wiring-figure">
+            <div class="media-frame is-clickable" data-lightbox data-src="images/sd-card-2.png" data-caption-key="sd_2_alt">
+              <img src="images/sd-card-2.png" alt="Danh sách chủ đề GIF trong trang thiết lập" data-i18n-alt="sd_2_alt" width="500" height="340" loading="lazy" onerror="handleImgError(this, 'images/sd-card-2.png')">
+            </div>
+            <figcaption data-i18n="sd_2_alt">Danh sách chủ đề GIF hiển thị trong trang thiết lập</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <div class="pixel-divider" aria-hidden="true"></div>
+
+    <!-- ===================== FAQ / XỬ LÝ LỖI ===================== -->
+    <section class="section" id="faq">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-num" style="background:var(--coral);">?</div>
+          <div class="section-head-text">
+            <h2 data-i18n="faq_title">FAQ & Xử lý lỗi thường gặp</h2>
+            <p data-i18n="faq_desc">Gặp trục trặc khi nạp hoặc đấu dây? Kiểm tra nhanh 6 tình huống phổ biến nhất.</p>
+          </div>
+        </div>
+
+        <div class="faq-list reveal" id="faqList"></div>
+      </div>
+    </section>
+
+    <div class="pixel-divider" aria-hidden="true"></div>
+
+    <!-- ===================== CỘNG ĐỒNG VÀ GHI CÔNG ===================== -->
+    <section class="section" id="community">
+      <div class="container">
+        <div class="section-head reveal">
+          <div class="section-num" style="background:var(--pink);">♥</div>
+          <div class="section-head-text">
+            <h2 data-i18n="comm_title">Cộng đồng & Ghi công</h2>
+            <p data-i18n="comm_desc">Cảm ơn các tác giả và anh em cộng đồng đã chia sẻ firmware, thư viện và sơ đồ mạch miễn phí.</p>
+          </div>
+        </div>
+
+        <div class="community-grid reveal">
+          <article class="credit-card" style="background:var(--lemon);">
+            <h3 data-i18n="comm_1_t">Firmware The Mochi</h3>
+            <p data-i18n="comm_1_d">Phát triển bởi Huykhong. Cung cấp công cụ nạp firmware, trang thiết lập web và GIF Maker.</p>
+            <a href="https://themochi.huykhong.com/" target="_blank" rel="noopener noreferrer">themochi.huykhong.com ↗</a>
+          </article>
+
+          <article class="credit-card" style="background:var(--sky);">
+            <h3 data-i18n="comm_2_t">Nhóm Facebook cộng đồng</h3>
+            <p data-i18n="comm_2_d">Nhóm "Nạn nhân của Dasai Mochi" – nơi hỏi đáp, khoe thành phẩm và cập nhật firmware mới.</p>
+            <a href="https://www.facebook.com/groups/2442849046100292" target="_blank" rel="noopener noreferrer" data-i18n="comm_2_link">Tham gia nhóm Facebook ↗</a>
+          </article>
+
+          <article class="credit-card" style="background:var(--lavender);">
+            <h3 data-i18n="comm_3_t">Thư viện & Sơ đồ</h3>
+            <p data-i18n="comm_3_d">Thư viện kết nối điện thoại ChronosESP của fbiego. Hình sơ đồ đấu nối tổng hợp do bạn Văn Hưng và bạn Nhân Data vẽ.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="site-footer">
+    <div class="container">
+      <p style="font-weight:700;color:var(--text);">Dasai Mochi DIY • ESP32-C3 + OLED</p>
+      <p data-i18n="footer_disclaimer">Trang hướng dẫn này là sản phẩm độc lập của cộng đồng, không phải trang chính thức của dự án The Mochi.</p>
+    </div>
+  </footer>
+
+  <!-- ===================== LIGHTBOX PHÓNG TO ẢNH ===================== -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-labelledby="lightboxCaption" hidden>
+    <div class="lightbox-dialog">
+      <div class="lightbox-top">
+        <p class="lightbox-caption" id="lightboxCaption"></p>
+        <button type="button" class="lightbox-close" id="lightboxClose" aria-label="Đóng ảnh phóng to" data-i18n-aria="lb_close_aria">✕</button>
+      </div>
+      <div class="lightbox-img-wrap">
+        <img id="lightboxImg" src="" alt="">
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       JAVASCRIPT THUẦN (CONFIG + I18N + OLED + PARTS PICKER + TABS + CHECKLIST + LIGHTBOX)
+       ========================================================================== -->
+  <script>
+    'use strict';
+
+    /* --------------------------------------------------------------------------
+       1. CẤU HÌNH NHANH (DỄ SỬA LINK, ẢNH LINH KIỆN INTERNET)
+       -------------------------------------------------------------------------- */
+    const HARDWARE_PARTS = {
+      required: [
+        {
+          id: 'esp32',
+          nameKey: 'p_esp_name',
+          noteKey: 'p_esp_note',
+          // Ảnh minh hoạ từ internet (Adafruit CDN), có fallback tự động nếu mất mạng
+          img: 'https://cdn-shop.adafruit.com/970x728/5337-00.jpg',
+          buyUrl: 'https://shopee.vn/search?keyword=esp32%20c3%20super%20mini'
+        },
+        {
+          id: 'oled',
+          nameKey: 'p_oled_name',
+          noteKey: 'p_oled_note',
+          img: 'https://cdn-shop.adafruit.com/970x728/326-00.jpg',
+          buyUrl: 'https://shopee.vn/search?keyword=oled%20ssd1306%200.96%20i2c'
+        },
+        {
+          id: 'cable',
+          nameKey: 'p_cable_name',
+          noteKey: 'p_cable_note',
+          img: 'https://cdn-shop.adafruit.com/970x728/4474-00.jpg',
+          buyUrl: 'https://shopee.vn/search?keyword=cap%20type%20c%20truyen%20du%20lieu'
+        },
+        {
+          id: 'pc',
+          nameKey: 'p_pc_name',
+          noteKey: 'p_pc_note',
+          img: 'https://commons.wikimedia.org/wiki/Special:FilePath/Laptop-computer.jpg?width=300',
+          buyUrl: ''
+        }
+      ],
+      optional: [
+        {
+          id: 'battery',
+          nameKey: 'p_bat_name',
+          noteKey: 'p_bat_note',
+          img: 'https://cdn-shop.adafruit.com/970x728/1570-00.jpg',
+          buyUrl: 'https://shopee.vn/search?keyword=pin%203.7v%20tp4056'
+        },
+        {
+          id: 'touch',
+          nameKey: 'p_touch_name',
+          noteKey: 'p_touch_note',
+          img: 'https://cdn-shop.adafruit.com/970x728/1374-00.jpg',
+          buyUrl: 'https://shopee.vn/search?keyword=cam%20bien%20cham%20ttp223'
+        },
+        {
+          id: 'buzzer',
+          nameKey: 'p_buz_name',
+          noteKey: 'p_buz_note',
+          img: 'https://cdn-shop.adafruit.com/970x728/160-00.jpg',
+          buyUrl: 'https://shopee.vn/search?keyword=module%20coi%20buzzer%203.3v'
+        },
+        {
+          id: 'amp',
+          nameKey: 'p_amp_name',
+          noteKey: 'p_amp_note',
+          img: 'https://cdn-shop.adafruit.com/970x728/3006-00.jpg',
+          buyUrl: 'https://shopee.vn/search?keyword=max98357%20loa%208%20ohm'
+        },
+        {
+          id: 'sd',
+          nameKey: 'p_sd_name',
+          noteKey: 'p_sd_note',
+          img: 'https://cdn-shop.adafruit.com/970x728/254-00.jpg',
+          buyUrl: 'https://shopee.vn/search?keyword=module%20the%20nho%20microsd'
+        },
+        {
+          id: 'android',
+          nameKey: 'p_and_name',
+          noteKey: 'p_and_note',
+          img: 'https://commons.wikimedia.org/wiki/Special:FilePath/Android_robot.svg',
+          buyUrl: 'https://play.google.com/store/search?q=Chronos%20fbiego&c=apps'
+        }
+      ]
+    };
+
+    /* --------------------------------------------------------------------------
+       2. TỪ ĐIỂN ĐA NGÔN NGỮ ĐẦY ĐỦ (VI & EN)
+       -------------------------------------------------------------------------- */
+    const I18N = {
+      vi: {
+        meta_title: 'Dasai Mochi DIY – Hướng dẫn tự làm robot mochi ESP32-C3 + OLED',
+        meta_desc: 'Hướng dẫn tự làm robot Dasai Mochi bằng ESP32-C3 và màn hình OLED: chuẩn bị linh kiện, sơ đồ đấu nối, nạp firmware trên trình duyệt và kết nối điện thoại Chronos.',
+        skip_link: 'Bỏ qua đến nội dung chính',
+        logo_alt: 'Logo Dasai Mochi DIY',
+        nav_aria: 'Điều hướng chính',
+        lang_switch_aria: 'Chuyển ngôn ngữ',
+        theme_toggle_aria: 'Chuyển chế độ sáng hoặc tối',
+        menu_open_aria: 'Mở menu điều hướng',
+        nav_features: 'Chức năng',
+        nav_prepare: 'Linh kiện',
+        nav_wiring: 'Sơ đồ',
+        nav_flash: 'Nạp firmware',
+        nav_config: 'Cấu hình',
+        nav_chronos: 'Chronos',
+        nav_advanced: 'Thẻ nhớ',
+        nav_faq: 'FAQ',
+
+        hero_badge: 'ESP32-C3 + OLED SSD1306 • DIY',
+        hero_title: 'Chú robot mochi biết biểu cảm ngay trên bàn của bạn.',
+        hero_subtitle: 'Tự làm Dasai Mochi bằng ESP32-C3 và màn OLED. Hơn 80 biểu cảm, đồng hồ, thông báo điện thoại và chỉ đường, nạp firmware ngay trên trình duyệt.',
+        hero_cta_primary: 'Bắt đầu tự làm',
+        hero_cta_secondary: 'Xem chức năng',
+        oled_tap_hint: 'Chạm để đổi mặt',
+        oled_aria: 'Chạm để đổi biểu cảm trên màn hình OLED giả',
+        oled_next: 'Đổi mặt',
+        oled_invert: 'Âm bản',
+        hero_img_alt: 'Ảnh thật robot Dasai Mochi tự làm trên bàn làm việc',
+        hero_photo_caption: 'Bản hoàn thiện đặt gọn trên góc bàn hoặc taplo xe.',
+
+        mood_normal: 'Bình thường',
+        mood_happy: 'Vui vẻ',
+        mood_sleepy: 'Buồn ngủ',
+        mood_surprised: 'Ngạc nhiên',
+        mood_heart: 'Thả tim',
+        mood_wink: 'Nháy mắt',
+        mood_dizzy: 'Chóng mặt',
+        mood_cool: 'Ngầu lòi',
+
+        stat_1: 'Biểu cảm (kèm 80+ bản âm bản đảo màu)',
+        stat_2_val: '3 bước',
+        stat_2: 'Chuẩn bị → Nạp firmware → Cấu hình',
+        stat_3_val: '0 dòng code',
+        stat_3: 'Nạp firmware trực tiếp trên Chrome/Edge',
+        stat_4_val: '4+ sơ đồ',
+        stat_4: 'Đấu nối rõ ràng từ cơ bản đến đầy đủ',
+
+        prod_1_alt: 'Dasai Mochi hiển thị biểu cảm trên bàn',
+        prod_2_alt: 'Dasai Mochi hiển thị đồng hồ và thông báo',
+        prod_3_alt: 'Cận cảnh mạch ESP32-C3 và màn hình OLED',
+
+        sec1_title: 'Chức năng nổi bật',
+        sec1_desc: 'Nhỏ gọn bằng lòng bàn tay nhưng đủ trò vui: từ biểu cảm sinh động đến đồng hồ, thông báo và dẫn đường.',
+        feat_1_t: 'Biểu cảm',
+        feat_1_d: 'Hơn 80 hiệu ứng chuyển động ngẫu nhiên, thêm hơn 80 bản âm bản (đảo màu). Chỉnh được tốc độ GIF và khoảng nghỉ giữa các GIF (0–60 giây, mặc định 5 giây).',
+        feat_2_t: 'Intro khởi động',
+        feat_2_d: 'Chọn bất kỳ GIF nào bạn thích làm hình mở máy.',
+        feat_3_t: 'Âm thanh',
+        feat_3_d: 'Chỉnh âm intro, thông báo, chạm, vuốt. Soạn nhạc riêng bằng buzzer, hoặc phát âm thanh thật bằng loa và mạch khuếch đại MAX98357.',
+        feat_4_t: 'Cảm biến chạm',
+        feat_4_d: 'Chạm, vuốt hoặc bấm nút để điều khiển, gán chức năng theo kịch bản (bật/tắt Bluetooth, hiện đồng hồ, chuyển GIF kế tiếp).',
+        feat_5_t: 'Đồng hồ',
+        feat_5_d: 'Hiện giờ, ngày tháng, phần trăm pin điện thoại. Đồng hồ nội bộ vẫn chạy khi mất kết nối. Có thể hiện thời tiết (cần Chronos) và thông tin CPU (khi cắm máy tính chạy ứng dụng).',
+        feat_6_t: 'Dẫn đường Google Maps',
+        feat_6_d: 'Hiện hướng rẽ, thời gian di chuyển bằng biểu tượng và văn bản.',
+        feat_7_t: 'Thông báo',
+        feat_7_d: 'Hiện tên người gọi, tin nhắn Zalo, Messenger và các app khác (tự chọn app), có xử lý riêng cho thông báo biến động số dư.',
+        feat_8_t: 'Cá nhân hoá',
+        feat_8_d: 'Bảng điều khiển trên web để đổi chân GPIO, loại màn (0.96" hoặc 1.3"), lật ngược màn hình để lắp vào vỏ, đổi ngôn ngữ.',
+        feat_9_t: 'Menu ẩn',
+        feat_9_d: 'Chạm 3 lần liên tiếp để mở menu tích hợp. Chạm 1 lần để di chuyển, giữ để chọn, chạm để đổi giá trị.',
+        feat_10_t: 'Tiết kiệm pin',
+        feat_10_d: 'Tự tắt Bluetooth sau X phút nếu không có kết nối.',
+
+        sec2_title: 'Cần chuẩn bị gì?',
+        sec2_desc: 'Chỉ cần 2 linh kiện chính là chạy được ngay. Tick chọn nhu cầu bên dưới để xem danh sách cần mua và sơ đồ tương ứng.',
+        picker_title: 'Trình chọn linh kiện theo nhu cầu',
+        picker_desc: 'Mặc định đã có ESP32-C3 Mini + màn OLED + cáp USB-C truyền dữ liệu. Chọn thêm tính năng bạn muốn:',
+        opt_battery: 'Tôi muốn dùng pin',
+        opt_buzzer: 'Âm thanh buzzer',
+        opt_speaker: 'Âm thanh loa (MAX98357)',
+        opt_touch: 'Cảm biến chạm (TTP223)',
+        opt_sd: 'Thẻ nhớ microSD',
+        picker_needed_label: 'Danh sách cần mua:',
+        picker_jump_btn: 'Xem sơ đồ phù hợp →',
+        picker_rec_prefix: 'Gợi ý sơ đồ:',
+
+        parts_req_title: 'Bắt buộc (4 món)',
+        parts_opt_title: 'Tuỳ chọn nâng cấp (6 món)',
+        th_img: 'Hình ảnh',
+        th_part: 'Linh kiện',
+        th_note: 'Chi tiết & lưu ý',
+        th_buy: 'Tìm mua',
+        btn_buy: 'Tìm mua ↗',
+        btn_open_app: 'Tải app ↗',
+        no_buy_needed: 'Có sẵn',
+
+        p_esp_name: 'Board ESP32-C3 Mini',
+        p_esp_note: 'Bộ não chính điều khiển toàn bộ robot, có sẵn Bluetooth LE và cổng Type-C.',
+        p_oled_name: 'Màn hình OLED SSD1306 0.96" hoặc 1.3"',
+        p_oled_note: 'Loại giao tiếp I2C (4 chân: VCC, GND, SCL, SDA).',
+        p_cable_name: 'Cáp USB Type-C CÓ truyền dữ liệu',
+        p_cable_note: 'Cách thử: cắm điện thoại vào máy tính, nếu điện thoại cho chọn "truyền dữ liệu" thì cáp dùng được.',
+        p_pc_name: 'Máy tính dùng Chrome hoặc Edge',
+        p_pc_note: 'Cần Web Serial API. Windows 10+ thường tự nhận; nếu không thấy cổng COM hãy cài driver CH340 hoặc CP2102.',
+        p_bat_name: 'Pin 3.7V + mạch sạc TP4056',
+        p_bat_note: 'Giúp Mochi hoạt động không dây, sạc lại qua cổng USB của TP4056.',
+        p_touch_name: 'Cảm biến chạm TTP223',
+        p_touch_note: 'Thêm thao tác chạm, giữ, vuốt để đổi GIF hoặc mở menu ẩn.',
+        p_buz_name: 'Loa buzzer',
+        p_buz_note: 'Phát âm thanh bíp đơn giản và giai điệu tự soạn.',
+        p_amp_name: 'Mạch khuếch đại MAX98357 + loa mini 8 ohm',
+        p_amp_note: 'Phát âm thanh thật sống động hơn hẳn buzzer (chọn 1 trong 2 với buzzer).',
+        p_sd_name: 'Module thẻ nhớ microSD',
+        p_sd_note: 'Lưu thêm bộ GIF và âm thanh riêng không giới hạn bộ nhớ trong.',
+        p_and_name: 'Điện thoại Android (cài Chronos)',
+        p_and_note: 'Dùng để gửi thông báo và chỉ đường Google Maps. Lưu ý: iOS không được hỗ trợ.',
+
+        sec3_title: 'Sơ đồ đấu nối',
+        sec3_desc: 'Bấm vào ảnh để phóng to. Dùng phím mũi tên Trái/Phải để chuyển nhanh giữa các tab sơ đồ.',
+        wiring_warn_title: 'Lưu ý quan trọng về chân GPIO:',
+        wiring_warn_body: 'Ngoài VCC và GND, các chân khác có thể đổi lại trong trang thiết lập. Tuyệt đối KHÔNG dùng GPIO0.',
+        wiring_tabs_aria: 'Các sơ đồ đấu nối',
+        tab_0: '1. Mạch cơ bản',
+        tab_1: '2. Pin & TP4056',
+        tab_2: '3. Chạm & Buzzer',
+        tab_3: '4. Tổng hợp Buzzer',
+        tab_4: '5. Tổng hợp Loa MAX98357',
+        tab_5: '6. Loa + microSD',
+        w0_alt: 'Sơ đồ mạch cơ bản ESP32-C3 và OLED',
+        w1_alt: 'Sơ đồ nối pin 3.7V với mạch sạc TP4056 và ESP32-C3',
+        w2_alt: 'Sơ đồ nối cảm biến chạm TTP223 và loa buzzer',
+        w3_alt: 'Sơ đồ mạch tổng hợp dùng buzzer',
+        w4_alt: 'Sơ đồ mạch tổng hợp dùng loa và mạch khuếch đại MAX98357',
+        w5_alt: 'Sơ đồ mạch tổng hợp dùng loa MAX98357 và module microSD',
+        zoom_hint: 'Bấm vào ảnh để phóng to',
+        pin_table_title: 'Bảng chân nối',
+        copy_btn: 'Sao chép',
+        copied_btn: 'Đã sao chép!',
+        copy_fail: 'Không thể sao chép',
+        pin_from: 'Từ',
+        pin_to: 'Đến',
+        pin_comp: 'Linh kiện',
+        w1_r1_a: 'Pin (+)',
+        w1_r2_a: 'Pin (-)',
+        w1_r3_b: 'ESP32-C3 5V (hoặc Vin)',
+        w1_note: 'Đấu đúng cực (+) và (-). Có thể thêm công tắc trên đường nguồn để tắt/mở.',
+        w2_ttp_out: 'GPIO 1 (hoặc GPIO input bất kỳ)',
+        w2_buz_in: '1 chân GPIO xuất PWM (chọn trong trang thiết lập)',
+        w2_note: 'Làm theo sơ đồ gốc là 3.3V. Nếu buzzer của bạn ghi 5V thì kiểm tra thông số trước khi cấp nguồn.',
+        see_diagram_pins: 'Xem chi tiết chân nối trong sơ đồ. Bấm vào hình bên cạnh để phóng to.',
+        credit_vanhung: 'Hình do bạn Văn Hưng vẽ',
+        credit_nhandata: 'Hình do bạn Nhân Data vẽ',
+
+        progress_aria: 'Tiến độ hoàn thành hướng dẫn',
+        progress_label: 'Tiến độ: {done}/{total} bước ({pct}%)',
+        progress_reset: 'Làm lại từ đầu',
+
+        sec4_title: 'Nạp firmware trên trình duyệt',
+        sec4_desc: 'Không cần cài phần mềm hay viết code. Thực hiện đúng 5 bước sau trên Chrome hoặc Edge.',
+        f_s1: 'KHÔNG cắm cáp. Trên board có 2 nút cạnh cổng Type-C: RST và BOOT.',
+        f_s2: 'Giữ nút BOOT, vừa giữ vừa cắm board vào máy tính.',
+        f_s3: 'Mở công cụ nạp firmware ở trang gốc của dự án và chọn phiên bản được khuyến nghị.',
+        f_s4: 'Bấm "Nạp Firmware", chọn đúng cổng COM, chọn "Install firmware".',
+        f_s5: 'Chờ vài phút cho đến khi hoàn tất.',
+        flash_cta: 'Mở công cụ nạp firmware ↗',
+
+        sec5_title: 'Cấu hình The Mochi',
+        sec5_desc: 'Tuỳ chỉnh chân GPIO, loại màn hình, âm thanh, GIF và kịch bản chạm.',
+        c_s1: 'Sau khi nạp xong, ĐÓNG trang nạp firmware để không chiếm cổng COM.',
+        c_s2: 'Mở trang thiết lập:',
+        c_s3: 'Bấm "Kết nối the Mochi", chọn đúng cổng COM như lúc nạp, nhưng KHÔNG cần giữ BOOT.',
+        c_s4: 'Chờ vài giây (từ phiên bản 4 trở lên) cho trang thiết lập hiện ra.',
+        c_s5: 'Chỉnh chân GPIO, loại màn, âm thanh, GIF, kịch bản chạm.',
+        c_s6: 'Bấm "Lưu thiết lập" để lưu vĩnh viễn vào bộ nhớ ESP32-C3.',
+        c_warn_title: 'Đừng quên lưu thiết lập!',
+        c_warn_body: 'Thay đổi có hiệu lực ngay, nhưng phải bấm "Lưu thiết lập", nếu không mọi thứ trở về cũ khi reset.',
+
+        sec6_title: 'Kết nối điện thoại với Chronos (chỉ Android)',
+        sec6_desc: 'Đồng bộ giờ, thời tiết, thông báo ứng dụng và chỉ đường Google Maps qua Bluetooth LE.',
+        ch_s1: 'Cài ứng dụng "Chronos" của tác giả fbiego trên Google Play.',
+        ch_s2: 'Ở tab Đồng hồ, bấm "Tìm kiếm" (hoặc "Quét QR"), chọn thiết bị "The Mochi" trong danh sách.',
+        ch_s3: 'Bấm "Cho phép truy cập" để Chronos đọc thông báo; có thể bấm "Tự kiểm tra", rồi "Bỏ qua thiết lập".',
+        ch_s4: 'Bật dẫn đường: tab Đồng hồ → cuộn xuống "Trình quản lý ESP32" → bật công tắc "Điều hướng". Sau đó mở Google Maps và bắt đầu chỉ đường.',
+        ch_s5: 'Bật thông báo: tab Thông báo → bật "Gọi" và "Tin nhắn" → mục "Ứng dụng" chỉ tick app thật sự cần (tránh nhiễu) → chỉnh "Biểu tượng thông báo" → "Tự kiểm tra" để gửi thử.',
+        ch_s6: 'Dùng chức năng "Tìm đồng hồ" để hiện giờ, pin điện thoại hoặc biểu cảm.',
+        ch_note: 'Ghi chú: Tốc độ cập nhật chỉ đường phụ thuộc độ trễ thông báo điện thoại và kết nối BLE.',
+        ch_img_1: 'Bước 1: Cài đặt ứng dụng Chronos',
+        ch_img_2: 'Bước 2: Bấm Tìm kiếm trong Chronos',
+        ch_img_3: 'Bước 2: Chọn thiết bị The Mochi',
+        ch_img_4: 'Bước 3: Cấp quyền truy cập thông báo',
+        ch_img_5: 'Bước 3: Chọn Bỏ qua thiết lập',
+        ch_img_6: 'Bước 4: Vào Trình quản lý ESP32',
+        ch_img_7: 'Bước 4: Bật công tắc Điều hướng',
+        ch_img_8: 'Bước 5: Bật thông báo Gọi và Tin nhắn',
+        ch_img_9: 'Bước 5: Chọn ứng dụng cần thông báo',
+        ch_img_11: 'Bước 5: Chỉnh Biểu tượng thông báo',
+        ch_img_12: 'Bước 5: Bấm Tự kiểm tra để gửi thử',
+
+        sec7_title: 'Nâng cao: GIF & âm thanh riêng bằng thẻ nhớ',
+        sec7_desc: 'Tự tạo bộ biểu cảm và âm thanh độc quyền bằng module thẻ nhớ microSD.',
+        a_s1: 'Mở GIF Maker:',
+        a_s1_b: 'kéo thả file GIF và file âm thanh vào.',
+        a_s2: 'Chỉnh thông số. GIF ít khung hình chạy mượt nhất, video dài có thể bị giật.',
+        a_s3: 'Chọn "Convert to BIN", rồi "Export to GIF". Phần mềm tạo một thư mục xuất.',
+        a_s4: 'Chép thư mục đó vào thẻ nhớ, trong thư mục "gifs/" (tạo nếu chưa có).',
+        a_s5: 'Cắm thẻ vào thiết bị, danh sách chủ đề GIF sẽ hiện trong phần kịch bản của trang thiết lập.',
+        a_s6: 'Chỉ tick "Dùng thẻ nhớ" khi ĐÃ cắm thẻ, nếu không thiết bị có thể bị treo.',
+        sd_1_alt: 'Cấu trúc thư mục gifs/ trên thẻ nhớ microSD',
+        sd_2_alt: 'Danh sách chủ đề GIF trong trang thiết lập',
+
+        faq_title: 'FAQ & Xử lý lỗi',
+        faq_desc: 'Gặp sự cố khi nạp firmware hay kết nối? Xem nhanh 6 lỗi phổ biến nhất.',
+        faqs: [
+          {
+            q: 'Không thấy cổng COM?',
+            a: 'Thử cáp USB Type-C khác (nhiều cáp chỉ có chức năng sạc), cài driver CH340 hoặc CP2102, và đảm bảo bạn đang dùng trình duyệt Chrome hoặc Edge.'
+          },
+          {
+            q: 'Không vào được trang thiết lập?',
+            a: 'Hãy đóng hoàn toàn tab trang nạp firmware để giải phóng cổng COM trước khi kết nối vào trang thiết lập.'
+          },
+          {
+            q: 'Cài đặt bị mất sau khi reset?',
+            a: 'Bạn chưa bấm nút "Lưu thiết lập". Mọi chỉnh sửa chỉ áp dụng tạm thời cho đến khi được lưu lại.'
+          },
+          {
+            q: 'Thiết bị bị treo?',
+            a: 'Kiểm tra xem bạn có lỡ tick "Dùng thẻ nhớ" trong khi chưa cắm thẻ nhớ microSD vào module hay không.'
+          },
+          {
+            q: 'Không nhận thông báo hoặc chỉ đường?',
+            a: 'Kiểm tra quyền truy cập thông báo trên Android, công tắc "Điều hướng" và danh sách app đã tick trong Chronos. Lưu ý: chỉ hỗ trợ Android, không hỗ trợ iOS.'
+          },
+          {
+            q: 'Màn hình không lên?',
+            a: 'Kiểm tra lại dây SDA/SCL (mặc định GPIO 20/21) và nguồn 3.3V, đồng thời chọn đúng loại màn OLED (0.96" hoặc 1.3") trong trang thiết lập.'
+          }
+        ],
+
+        comm_title: 'Cộng đồng & Ghi công',
+        comm_desc: 'Cảm ơn các tác giả và cộng đồng đã chia sẻ firmware, thư viện và sơ đồ hoàn toàn miễn phí.',
+        comm_1_t: 'Firmware The Mochi',
+        comm_1_d: 'Dự án firmware The Mochi do Huykhong phát triển, kèm công cụ nạp web, trang thiết lập và GIF Maker.',
+        comm_2_t: 'Nhóm Facebook cộng đồng',
+        comm_2_d: 'Nhóm "Nạn nhân của Dasai Mochi" – hỗ trợ, chia sẻ thành phẩm và cập nhật phiên bản mới.',
+        comm_2_link: 'Tham gia nhóm Facebook ↗',
+        comm_3_t: 'Thư viện & Sơ đồ',
+        comm_3_d: 'Thư viện kết nối điện thoại ChronosESP của fbiego. Hình sơ đồ tổng hợp do bạn Văn Hưng và bạn Nhân Data vẽ.',
+
+        footer_disclaimer: 'Trang hướng dẫn này là sản phẩm độc lập của cộng đồng, không phải trang chính thức của dự án The Mochi.',
+        lb_close_aria: 'Đóng ảnh phóng to',
+        img_missing_label: 'Chưa có ảnh:'
+      },
+
+      en: {
+        meta_title: 'Dasai Mochi DIY – Build Your Own ESP32-C3 + OLED Desk Robot',
+        meta_desc: 'Beginner-friendly DIY guide to build a Dasai Mochi desk robot using ESP32-C3 and OLED: parts list, wiring diagrams, browser firmware flashing, and Chronos Android setup.',
+        skip_link: 'Skip to main content',
+        logo_alt: 'Dasai Mochi DIY Logo',
+        nav_aria: 'Main navigation',
+        lang_switch_aria: 'Switch language',
+        theme_toggle_aria: 'Toggle light or dark mode',
+        menu_open_aria: 'Open navigation menu',
+        nav_features: 'Features',
+        nav_prepare: 'Parts',
+        nav_wiring: 'Wiring',
+        nav_flash: 'Flash',
+        nav_config: 'Config',
+        nav_chronos: 'Chronos',
+        nav_advanced: 'microSD',
+        nav_faq: 'FAQ',
+
+        hero_badge: 'ESP32-C3 + OLED SSD1306 • DIY',
+        hero_title: 'An expressive little mochi robot right on your desk.',
+        hero_subtitle: 'Build your own Dasai Mochi with an ESP32-C3 and OLED screen. Over 80 animations, clock, phone notifications, and turn-by-turn navigation—flashed right in your browser.',
+        hero_cta_primary: 'Start building',
+        hero_cta_secondary: 'See features',
+        oled_tap_hint: 'Tap to switch face',
+        oled_aria: 'Tap to change expression on the simulated OLED screen',
+        oled_next: 'Next face',
+        oled_invert: 'Invert',
+        hero_img_alt: 'Finished DIY Dasai Mochi robot on a desk',
+        hero_photo_caption: 'Compact finished build for your desk or car dashboard.',
+
+        mood_normal: 'Normal',
+        mood_happy: 'Happy',
+        mood_sleepy: 'Sleepy',
+        mood_surprised: 'Surprised',
+        mood_heart: 'Love',
+        mood_wink: 'Wink',
+        mood_dizzy: 'Dizzy',
+        mood_cool: 'Cool',
+
+        stat_1: 'Expressions (plus 80+ inverted versions)',
+        stat_2_val: '3 steps',
+        stat_2: 'Prepare → Flash firmware → Configure',
+        stat_3_val: '0 lines of code',
+        stat_3: 'Flash firmware directly in Chrome/Edge',
+        stat_4_val: '4+ diagrams',
+        stat_4: 'Clear wiring from basic to full build',
+
+        prod_1_alt: 'Dasai Mochi displaying expressions on a desk',
+        prod_2_alt: 'Dasai Mochi showing clock and phone notifications',
+        prod_3_alt: 'Close-up of ESP32-C3 board and OLED display',
+
+        sec1_title: 'Key Features',
+        sec1_desc: 'Palm-sized and packed with personality—from animated faces to clock, notifications, and navigation.',
+        feat_1_t: 'Expressions',
+        feat_1_d: 'Over 80 random animated expressions plus 80+ inverted (negative) variants. Customize GIF speed and pause interval (0–60 seconds, default 5s).',
+        feat_2_t: 'Boot Intro',
+        feat_2_d: 'Pick any GIF you like as your startup splash animation.',
+        feat_3_t: 'Audio',
+        feat_3_d: 'Customize sounds for intro, notifications, tap, and swipe. Compose buzzer melodies or play real audio with a speaker and MAX98357 amp.',
+        feat_4_t: 'Touch Sensor',
+        feat_4_d: 'Tap, swipe, or press a button to trigger custom actions (toggle Bluetooth, show clock, skip to next GIF).',
+        feat_5_t: 'Clock & Widgets',
+        feat_5_d: 'Shows time, date, and phone battery %. Internal clock keeps running offline. Supports weather (via Chronos) and PC CPU stats (via desktop companion app).',
+        feat_6_t: 'Google Maps Navigation',
+        feat_6_d: 'Displays turn-by-turn direction icons and ETA text directly on the OLED.',
+        feat_7_t: 'Notifications',
+        feat_7_d: 'Shows caller ID, Zalo, Messenger, and selected apps, with dedicated formatting for bank balance alerts.',
+        feat_8_t: 'Web Personalization',
+        feat_8_d: 'Web dashboard to remap GPIO pins, pick OLED size (0.96" or 1.3"), flip display orientation for enclosures, and switch language.',
+        feat_9_t: 'Hidden Menu',
+        feat_9_d: 'Triple-tap to open the built-in menu. Single tap to navigate, hold to select, tap to change values.',
+        feat_10_t: 'Battery Saver',
+        feat_10_d: 'Automatically turns off Bluetooth after X minutes of inactivity to save battery.',
+
+        sec2_title: 'What You Need',
+        sec2_desc: 'Only 2 core parts are needed to get started. Tick your desired add-ons below to generate your parts list and recommended wiring diagram.',
+        picker_title: 'Interactive Parts Picker',
+        picker_desc: 'Base kit includes ESP32-C3 Mini + OLED screen + data USB-C cable. Select optional upgrades:',
+        opt_battery: 'I want battery power',
+        opt_buzzer: 'Buzzer sound',
+        opt_speaker: 'Real speaker (MAX98357)',
+        opt_touch: 'Touch sensor (TTP223)',
+        opt_sd: 'microSD card module',
+        picker_needed_label: 'Parts to get:',
+        picker_jump_btn: 'Jump to wiring diagram →',
+        picker_rec_prefix: 'Recommended diagram:',
+
+        parts_req_title: 'Required (4 items)',
+        parts_opt_title: 'Optional Upgrades (6 items)',
+        th_img: 'Photo',
+        th_part: 'Component',
+        th_note: 'Beginner Notes',
+        th_buy: 'Shop',
+        btn_buy: 'Search ↗',
+        btn_open_app: 'Get App ↗',
+        no_buy_needed: 'On hand',
+
+        p_esp_name: 'ESP32-C3 Mini Board',
+        p_esp_note: 'Main controller with built-in Bluetooth LE and USB Type-C.',
+        p_oled_name: 'OLED SSD1306 0.96" or 1.3"',
+        p_oled_note: '4-pin I2C version (VCC, GND, SCL, SDA).',
+        p_cable_name: 'USB Type-C DATA Cable',
+        p_cable_note: 'Quick test: plug your phone into a PC—if it offers "File Transfer", the cable supports data.',
+        p_pc_name: 'Computer with Chrome or Edge',
+        p_pc_note: 'Required for Web Serial API. Windows 10+ usually needs no driver; if no COM port appears, install CH340 or CP2102 driver.',
+        p_bat_name: '3.7V Battery + TP4056 Charger',
+        p_bat_note: 'Enables wireless portable operation with rechargeable USB power.',
+        p_touch_name: 'TTP223 Touch Sensor',
+        p_touch_note: 'Adds tap, hold, and swipe controls plus hidden menu access.',
+        p_buz_name: 'Buzzer Module',
+        p_buz_note: 'Simple beeps and custom composed tones.',
+        p_amp_name: 'MAX98357 Amp + 8-ohm Mini Speaker',
+        p_amp_note: 'Plays real audio clips (choose either buzzer or MAX98357 + speaker).',
+        p_sd_name: 'microSD Card Module',
+        p_sd_note: 'Store your own custom GIF packs and audio files.',
+        p_and_name: 'Android Phone (Chronos App)',
+        p_and_note: 'Required for notifications and Google Maps navigation. iOS is not supported.',
+
+        sec3_title: 'Wiring Diagrams',
+        sec3_desc: 'Click any diagram to zoom in. Use Left/Right arrow keys to switch between wiring tabs.',
+        wiring_warn_title: 'Important GPIO Warning:',
+        wiring_warn_body: 'Besides VCC and GND, other pins can be reassigned in the web configurator. NEVER use GPIO0.',
+        wiring_tabs_aria: 'Wiring diagrams',
+        tab_0: '1. Basic Circuit',
+        tab_1: '2. Battery & TP4056',
+        tab_2: '3. Touch & Buzzer',
+        tab_3: '4. Full Build (Buzzer)',
+        tab_4: '5. Full Build (MAX98357)',
+        tab_5: '6. Speaker + microSD',
+        w0_alt: 'Basic wiring diagram for ESP32-C3 and OLED',
+        w1_alt: 'Wiring diagram for 3.7V battery, TP4056 charger, and ESP32-C3',
+        w2_alt: 'Wiring diagram for TTP223 touch sensor and buzzer',
+        w3_alt: 'Combined full wiring diagram with buzzer',
+        w4_alt: 'Combined full wiring diagram with MAX98357 amplifier and speaker',
+        w5_alt: 'Combined full wiring diagram with MAX98357 speaker and microSD module',
+        zoom_hint: 'Click image to zoom',
+        pin_table_title: 'Pinout Table',
+        copy_btn: 'Copy',
+        copied_btn: 'Copied!',
+        copy_fail: 'Copy failed',
+        pin_from: 'From',
+        pin_to: 'To',
+        pin_comp: 'Component',
+        w1_r1_a: 'Battery (+)',
+        w1_r2_a: 'Battery (-)',
+        w1_r3_b: 'ESP32-C3 5V (or Vin)',
+        w1_note: 'Match (+) and (-) polarity carefully. You may add a toggle switch on the Out+ power line.',
+        w2_ttp_out: 'GPIO 1 (or any input GPIO)',
+        w2_buz_in: 'Any PWM output GPIO (select in configurator)',
+        w2_note: 'The original diagram uses 3.3V. If your buzzer is rated for 5V, check its specs before powering.',
+        see_diagram_pins: 'See exact pin connections in the diagram. Click the image to zoom in.',
+        credit_vanhung: 'Diagram drawn by Văn Hưng',
+        credit_nhandata: 'Diagram drawn by Nhân Data',
+
+        progress_aria: 'Build progress tracker',
+        progress_label: 'Progress: {done}/{total} steps ({pct}%)',
+        progress_reset: 'Reset checklist',
+
+        sec4_title: 'Flash Firmware in Browser',
+        sec4_desc: 'Zero software installation or coding required. Follow these 5 steps in Chrome or Edge.',
+        f_s1: 'Do NOT plug in the USB cable yet. Locate the two small buttons near the Type-C port: RST and BOOT.',
+        f_s2: 'Hold down the BOOT button, and keep holding it while plugging the board into your computer.',
+        f_s3: 'Open the official project firmware flasher and pick the recommended version.',
+        f_s4: 'Click "Nạp Firmware" (Flash), select the matching COM port, then choose "Install firmware".',
+        f_s5: 'Wait a few minutes until flashing reaches 100% completion.',
+        flash_cta: 'Open Firmware Flasher ↗',
+
+        sec5_title: 'Configure The Mochi',
+        sec5_desc: 'Customize GPIO pins, OLED screen size, audio, GIFs, and touch scenarios via web.',
+        c_s1: 'After flashing completes, CLOSE the flasher tab so it releases the COM port.',
+        c_s2: 'Open the web configurator:',
+        c_s3: 'Click "Kết nối the Mochi" (Connect), choose the same COM port—NO need to hold BOOT this time.',
+        c_s4: 'Wait a few seconds (firmware v4+) for the configuration dashboard to load.',
+        c_s5: 'Adjust GPIO pins, screen type (0.96" or 1.3"), audio, GIFs, and touch actions.',
+        c_s6: 'Click "Lưu thiết lập" (Save settings) before unplugging or resetting.',
+        c_warn_title: 'Remember to save!',
+        c_warn_body: 'Changes apply live for preview, but you MUST click "Lưu thiết lập" (Save) or everything resets on reboot.',
+
+        sec6_title: 'Connect Android Phone via Chronos',
+        sec6_desc: 'Sync time, weather, app notifications, and Google Maps directions over Bluetooth LE (Android only).',
+        ch_s1: 'Install the "Chronos" app by fbiego from Google Play.',
+        ch_s2: 'In the Watch tab, tap "Search" (or "Scan QR") and pick "The Mochi" from the device list.',
+        ch_s3: 'Tap "Allow access" so Chronos can read notifications; optionally tap "Self-test", then "Skip setup".',
+        ch_s4: 'Enable navigation: Watch tab → scroll to "ESP32 Manager" → turn on "Navigation". Then start a route in Google Maps.',
+        ch_s5: 'Enable notifications: Notifications tab → enable "Calls" & "Messages" → under "Apps" tick only essential apps → adjust "Notification icon" → tap "Self-test".',
+        ch_s6: 'Use "Find Watch" to quickly display time, phone battery, or an expression on Mochi.',
+        ch_note: 'Note: Navigation update speed depends on Android notification latency and BLE signal stability.',
+        ch_img_1: 'Step 1: Install Chronos app',
+        ch_img_2: 'Step 2: Tap Search in Chronos',
+        ch_img_3: 'Step 2: Select The Mochi device',
+        ch_img_4: 'Step 3: Grant notification access',
+        ch_img_5: 'Step 3: Tap Skip setup',
+        ch_img_6: 'Step 4: Open ESP32 Manager',
+        ch_img_7: 'Step 4: Toggle Navigation on',
+        ch_img_8: 'Step 5: Enable Calls & Messages',
+        ch_img_9: 'Step 5: Select specific apps',
+        ch_img_11: 'Step 5: Configure Notification Icon',
+        ch_img_12: 'Step 5: Send a test via Self-test',
+
+        sec7_title: 'Advanced: Custom GIFs & Audio via microSD',
+        sec7_desc: 'Add your own animations and sound effects using a microSD card module.',
+        a_s1: 'Open GIF Maker:',
+        a_s1_b: 'and drag & drop your GIF and audio files.',
+        a_s2: 'Tune the parameters. Shorter GIFs with fewer frames play smoothest; long clips may stutter.',
+        a_s3: 'Click "Convert to BIN", then "Export to GIF". The tool generates an export folder.',
+        a_s4: 'Copy that folder onto your microSD card inside a "gifs/" directory (create it if needed).',
+        a_s5: 'Insert the card into your Mochi; your custom GIF themes will appear in the configurator scenarios.',
+        a_s6: 'Only tick "Use SD Card" when a card is ALREADY inserted—otherwise the device may freeze.',
+        sd_1_alt: 'gifs/ folder structure on the microSD card',
+        sd_2_alt: 'Custom GIF theme list in the web configurator',
+
+        faq_title: 'FAQ & Troubleshooting',
+        faq_desc: 'Stuck while flashing or wiring? Check the 6 most common fixes below.',
+        faqs: [
+          {
+            q: 'COM port not showing up?',
+            a: 'Try a different USB Type-C cable (many are charge-only), install the CH340 or CP2102 driver, and use Chrome or Edge.'
+          },
+          {
+            q: 'Cannot open or connect to the configurator?',
+            a: 'Close the firmware flasher tab completely to free up the COM port before connecting.'
+          },
+          {
+            q: 'Settings disappear after a reset?',
+            a: 'You forgot to click "Lưu thiết lập" (Save settings). Live edits are temporary until saved.'
+          },
+          {
+            q: 'Device freezes on boot?',
+            a: 'Check if you enabled "Use SD Card" without actually having a microSD card inserted.'
+          },
+          {
+            q: 'No notifications or Google Maps directions?',
+            a: 'Verify notification access permission, the "Navigation" toggle, and your selected apps list in Chronos. Remember: Android only (iOS is not supported).'
+          },
+          {
+            q: 'OLED screen stays blank?',
+            a: 'Double-check SDA/SCL (default GPIO 20/21) and 3.3V power, and verify you picked the right screen type (0.96" or 1.3") in settings.'
+          }
+        ],
+
+        comm_title: 'Community & Credits',
+        comm_desc: 'Huge thanks to the creators and community members sharing firmware, libraries, and diagrams for free.',
+        comm_1_t: 'The Mochi Firmware',
+        comm_1_d: 'Developed by Huykhong—providing the web flasher, configurator, and GIF Maker.',
+        comm_2_t: 'Facebook Community',
+        comm_2_d: '"Nạn nhân của Dasai Mochi" group—support, showcase builds, and firmware updates.',
+        comm_2_link: 'Join Facebook Group ↗',
+        comm_3_t: 'Libraries & Diagrams',
+        comm_3_d: 'ChronosESP phone bridge library by fbiego. Full wiring diagrams drawn by Văn Hưng and Nhân Data.',
+
+        footer_disclaimer: 'This guide is an independent community resource and is not the official website of The Mochi project.',
+        lb_close_aria: 'Close zoomed image',
+        img_missing_label: 'Missing image:'
+      }
+    };
+
+    /* --------------------------------------------------------------------------
+       3. QUẢN LÝ NGÔN NGỮ & STORAGE AN TOÀN (TRY/CATCH)
+       -------------------------------------------------------------------------- */
+    let currentLang = 'vi';
+
+    function safeGetStorage(key) {
+      try { return localStorage.getItem(key); } catch (e) { return null; }
+    }
+    function safeSetStorage(key, val) {
+      try { localStorage.setItem(key, val); } catch (e) {}
+    }
+
+    function t(key) {
+      return (I18N[currentLang] && I18N[currentLang][key] !== undefined)
+        ? I18N[currentLang][key]
+        : (I18N.vi[key] || key);
+    }
+
+    // Xử lý fallback khi thiếu ảnh nội bộ hoặc lỗi tải ảnh
+    window.handleImgError = function(imgEl, filename) {
+      const parent = imgEl.parentElement;
+      if (!parent) return;
+      imgEl.style.display = 'none';
+      if (parent.querySelector('.img-placeholder')) return;
+      const box = document.createElement('div');
+      box.className = 'img-placeholder';
+      box.innerHTML = `
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        <span data-i18n="img_missing_label">${t('img_missing_label')}</span>
+        <code>${filename}</code>
+      `;
+      parent.appendChild(box);
+      parent.classList.remove('is-clickable');
+    };
+
+    function applyLanguage(lang) {
+      currentLang = (lang === 'en') ? 'en' : 'vi';
+      document.documentElement.lang = currentLang;
+      document.title = t('meta_title');
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) metaDesc.setAttribute('content', t('meta_desc'));
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = t(key);
+      });
+      document.querySelectorAll('[data-i18n-alt]').forEach(el => {
+        el.setAttribute('alt', t(el.getAttribute('data-i18n-alt')));
+      });
+      document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+        el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));
+      });
+
+      document.getElementById('btnLangVi').setAttribute('aria-pressed', currentLang === 'vi');
+      document.getElementById('btnLangEn').setAttribute('aria-pressed', currentLang === 'en');
+
+      safeSetStorage('mochi_lang', currentLang);
+
+      // Cập nhật các phần render động
+      renderPartsTables();
+      updatePartsPicker();
+      renderFaq();
+      updateProgress();
+      updateOledMoodLabel();
+    }
+
+    /* --------------------------------------------------------------------------
+       4. CHẾ ĐỘ SÁNG / TỐI
+       -------------------------------------------------------------------------- */
+    function initTheme() {
+      const saved = safeGetStorage('mochi_theme');
+      if (saved === 'dark' || saved === 'light') {
+        document.documentElement.setAttribute('data-theme', saved);
+      }
+      document.getElementById('btnTheme').addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+          (!document.documentElement.hasAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        const next = isDark ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        safeSetStorage('mochi_theme', next);
+      });
+    }
+
+    /* --------------------------------------------------------------------------
+       5. KHUNG MÀN HÌNH OLED GIẢ (<canvas> 128×64 PIXEL)
+       -------------------------------------------------------------------------- */
+    const OLED_MOODS = [
+      { id: 'normal', labelKey: 'mood_normal' },
+      { id: 'happy', labelKey: 'mood_happy' },
+      { id: 'sleepy', labelKey: 'mood_sleepy' },
+      { id: 'surprised', labelKey: 'mood_surprised' },
+      { id: 'heart', labelKey: 'mood_heart' },
+      { id: 'wink', labelKey: 'mood_wink' },
+      { id: 'dizzy', labelKey: 'mood_dizzy' },
+      { id: 'cool', labelKey: 'mood_cool' }
+    ];
+
+    let oledMoodIndex = 0;
+    let oledInverted = false;
+    let oledBlink = false;
+    let oledTick = 0;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function updateOledMoodLabel() {
+      const el = document.getElementById('oledMoodLabel');
+      if (el) el.textContent = t(OLED_MOODS[oledMoodIndex].labelKey);
+    }
+
+    function drawOled() {
+      const canvas = document.getElementById('oledCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = 128, H = 64;
+      const bg = oledInverted ? '#7CE8FF' : '#060812';
+      const fg = oledInverted ? '#060812' : '#7CE8FF';
+
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = fg;
+
+      const mood = OLED_MOODS[oledMoodIndex].id;
+      const dx = (!prefersReducedMotion && mood === 'normal') ? Math.round(Math.sin(oledTick * 0.08) * 3) : 0;
+
+      // Hàm vẽ hình chữ nhật bo góc kiểu pixel
+      function pxRect(x, y, w, h) {
+        ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+      }
+
+      function drawHeart(cx, cy, s) {
+        const pattern = [
+          '01100110',
+          '11111111',
+          '11111111',
+          '11111111',
+          '01111110',
+          '00111100',
+          '00011000'
+        ];
+        pattern.forEach((row, r) => {
+          for (let c = 0; c < row.length; c++) {
+            if (row[c] === '1') pxRect(cx + c * s, cy + r * s, s, s);
+          }
+        });
+      }
+
+      if (oledBlink && (mood === 'normal' || mood === 'surprised')) {
+        pxRect(26 + dx, 30, 26, 4);
+        pxRect(76 + dx, 30, 26, 4);
+        return;
+      }
+
+      switch (mood) {
+        case 'normal':
+          pxRect(28 + dx, 18, 24, 28);
+          pxRect(76 + dx, 18, 24, 28);
+          // Điểm sáng nhỏ trong mắt
+          ctx.fillStyle = bg;
+          pxRect(33 + dx, 22, 5, 5);
+          pxRect(81 + dx, 22, 5, 5);
+          break;
+
+        case 'happy':
+          // Mắt cười ^ ^
+          for (let i = 0; i < 12; i++) {
+            pxRect(24 + i, 34 - Math.round(Math.sin((i / 11) * Math.PI) * 12), 4, 4);
+            pxRect(76 + i, 34 - Math.round(Math.sin((i / 11) * Math.PI) * 12), 4, 4);
+          }
+          // Má hồng pixel
+          pxRect(16, 42, 8, 4);
+          pxRect(104, 42, 8, 4);
+          break;
+
+        case 'sleepy':
+          pxRect(26, 32, 26, 8);
+          pxRect(76, 32, 26, 8);
+          // Chữ Z nhỏ
+          const zy = 10 + (oledTick % 6 < 3 ? 0 : 2);
+          pxRect(104, zy, 10, 2);
+          pxRect(108, zy + 2, 4, 2);
+          pxRect(104, zy + 4, 10, 2);
+          break;
+
+        case 'surprised':
+          pxRect(28, 14, 24, 28);
+          pxRect(76, 14, 24, 28);
+          ctx.fillStyle = bg;
+          pxRect(34, 20, 12, 16);
+          pxRect(82, 20, 12, 16);
+          ctx.fillStyle = fg;
+          pxRect(58, 46, 12, 10);
+          ctx.fillStyle = bg;
+          pxRect(61, 49, 6, 4);
+          break;
+
+        case 'heart':
+          drawHeart(22, 18, 4);
+          drawHeart(74, 18, 4);
+          break;
+
+        case 'wink':
+          pxRect(28, 18, 24, 28);
+          ctx.fillStyle = bg;
+          pxRect(33, 22, 5, 5);
+          ctx.fillStyle = fg;
+          // Mắt nháy >
+          pxRect(76, 22, 14, 4);
+          pxRect(86, 26, 10, 4);
+          pxRect(90, 30, 8, 4);
+          pxRect(86, 34, 10, 4);
+          pxRect(76, 38, 14, 4);
+          break;
+
+        case 'dizzy':
+          // Mắt X X
+          for (let i = 0; i < 20; i += 3) {
+            pxRect(28 + i, 20 + i, 4, 4);
+            pxRect(48 - i, 20 + i, 4, 4);
+            pxRect(78 + i, 20 + i, 4, 4);
+            pxRect(98 - i, 20 + i, 4, 4);
+          }
+          break;
+
+        case 'cool':
+          // Kính râm pixel
+          pxRect(16, 20, 42, 20);
+          pxRect(70, 20, 42, 20);
+          pxRect(58, 24, 12, 6);
+          ctx.fillStyle = bg;
+          pxRect(22, 24, 6, 4);
+          pxRect(26, 28, 6, 4);
+          pxRect(76, 24, 6, 4);
+          pxRect(80, 28, 6, 4);
+          break;
+      }
+    }
+
+    function initOled() {
+      const nextMood = () => {
+        oledMoodIndex = (oledMoodIndex + 1) % OLED_MOODS.length;
+        oledBlink = false;
+        updateOledMoodLabel();
+        drawOled();
+      };
+
+      const bezel = document.getElementById('oledBezel');
+      bezel.addEventListener('click', nextMood);
+      bezel.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          nextMood();
+        }
+      });
+
+      document.getElementById('btnOledNext').addEventListener('click', nextMood);
+      document.getElementById('btnOledInvert').addEventListener('click', (e) => {
+        oledInverted = !oledInverted;
+        e.currentTarget.setAttribute('aria-pressed', oledInverted);
+        drawOled();
+      });
+
+      drawOled();
+
+      if (!prefersReducedMotion) {
+        setInterval(() => {
+          oledTick++;
+          if (oledTick % 24 === 0) {
+            oledBlink = true;
+            drawOled();
+            setTimeout(() => { oledBlink = false; drawOled(); }, 160);
+          } else {
+            drawOled();
+          }
+        }, 180);
+
+        setInterval(() => {
+          oledMoodIndex = Math.floor(Math.random() * OLED_MOODS.length);
+          updateOledMoodLabel();
+          drawOled();
+        }, 5000);
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       6. BẢNG LINH KIỆN CÓ HÌNH ẢNH INTERNET + TRÌNH CHỌN LINH KIỆN
+       -------------------------------------------------------------------------- */
+    function renderPartsTables() {
+      function buildRows(list) {
+        return list.map(item => {
+          const name = t(item.nameKey);
+          const note = t(item.noteKey);
+          let actionHtml = `<span style="font-size:0.86rem;color:var(--text-muted);font-weight:600;">${t('no_buy_needed')}</span>`;
+          if (item.buyUrl) {
+            const btnLabel = item.id === 'android' ? t('btn_open_app') : t('btn_buy');
+            actionHtml = `<a href="${item.buyUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-accent-mint">${btnLabel}</a>`;
+          }
+          return `
+            <tr>
+              <td>
+                <div class="part-thumb">
+                  <img src="${item.img}" alt="${name}" width="76" height="58" loading="lazy" referrerpolicy="no-referrer" onerror="handleImgError(this, '${item.id}')">
+                </div>
+              </td>
+              <td><strong>${name}</strong></td>
+              <td>${note}</td>
+              <td>${actionHtml}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+      document.getElementById('partsRequiredBody').innerHTML = buildRows(HARDWARE_PARTS.required);
+      document.getElementById('partsOptionalBody').innerHTML = buildRows(HARDWARE_PARTS.optional);
+    }
+
+    let recommendedTabIndex = 0;
+
+    function updatePartsPicker() {
+      const bat = document.getElementById('optBattery').checked;
+      const buz = document.getElementById('optBuzzer').checked;
+      const spk = document.getElementById('optSpeaker').checked;
+      const tch = document.getElementById('optTouch').checked;
+      const sd = document.getElementById('optSd').checked;
+
+      const items = [t('p_esp_name'), t('p_oled_name'), t('p_cable_name')];
+      if (bat) items.push(t('p_bat_name'));
+      if (tch) items.push(t('p_touch_name'));
+      if (buz) items.push(t('p_buz_name'));
+      if (spk) items.push(t('p_amp_name'));
+      if (sd) items.push(t('p_sd_name'));
+
+      // Gợi ý TAB sơ đồ phù hợp nhất
+      if (sd) {
+        recommendedTabIndex = 5; // Tab 6: Loa + microSD
+      } else if (spk) {
+        recommendedTabIndex = 4; // Tab 5: Tổng hợp Loa MAX98357
+      } else if (bat && (buz || tch)) {
+        recommendedTabIndex = 3; // Tab 4: Tổng hợp Buzzer
+      } else if (buz || tch) {
+        recommendedTabIndex = 2; // Tab 3: Chạm & Buzzer
+      } else if (bat) {
+        recommendedTabIndex = 1; // Tab 2: Pin & TP4056
+      } else {
+        recommendedTabIndex = 0; // Tab 1: Mạch cơ bản
+      }
+
+      const tagsEl = document.getElementById('pickerTags');
+      tagsEl.innerHTML = items.map(x => `<span class="picker-tag">${x}</span>`).join('');
+      document.getElementById('pickerAdvice').innerHTML =
+        `<strong>${t('picker_rec_prefix')}</strong> ${t('tab_' + recommendedTabIndex)}`;
+    }
+
+    function initPartsPicker() {
+      ['optBattery', 'optBuzzer', 'optSpeaker', 'optTouch', 'optSd'].forEach(id => {
+        document.getElementById(id).addEventListener('change', (e) => {
+          // Buzzer và Loa MAX98357 thường chọn 1 trong 2
+          if (id === 'optSpeaker' && e.target.checked) {
+            document.getElementById('optBuzzer').checked = false;
+          }
+          if (id === 'optBuzzer' && e.target.checked) {
+            document.getElementById('optSpeaker').checked = false;
+          }
+          updatePartsPicker();
+        });
+      });
+
+      document.getElementById('btnJumpWiring').addEventListener('click', () => {
+        activateWiringTab(recommendedTabIndex);
+        document.getElementById('wiring').scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+      });
+    }
+
+    /* --------------------------------------------------------------------------
+       7. TAB SƠ ĐỒ ĐẤU NỐI (ACCESSIBLE + MŨI TÊN TRÁI/PHẢI) + NÚT SAO CHÉP
+       -------------------------------------------------------------------------- */
+    const tabBtns = () => Array.from(document.querySelectorAll('#wiringTablist [role="tab"]'));
+
+    function activateWiringTab(idx, shouldFocus = false) {
+      const tabs = tabBtns();
+      tabs.forEach((btn, i) => {
+        const selected = i === idx;
+        btn.setAttribute('aria-selected', selected);
+        btn.setAttribute('tabindex', selected ? '0' : '-1');
+        const panel = document.getElementById(btn.getAttribute('aria-controls'));
+        if (panel) panel.hidden = !selected;
+        if (selected && shouldFocus) btn.focus();
+      });
+    }
+
+    function initWiringTabs() {
+      const tabs = tabBtns();
+      tabs.forEach((btn, idx) => {
+        btn.addEventListener('click', () => activateWiringTab(idx));
+        btn.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            activateWiringTab((idx + 1) % tabs.length, true);
+          } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            activateWiringTab((idx - 1 + tabs.length) % tabs.length, true);
+          }
+        });
+      });
+
+      // Nút sao chép bảng chân nối
+      document.querySelectorAll('.btn-copy').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const table = document.getElementById(btn.getAttribute('data-copy-target'));
+          if (!table) return;
+          const rows = Array.from(table.querySelectorAll('tr'))
+            .map(tr => Array.from(tr.children).map(td => td.textContent.trim()).join(' -> '))
+            .join('\n');
+
+          const done = () => {
+            btn.textContent = t('copied_btn');
+            setTimeout(() => { btn.textContent = t('copy_btn'); }, 1800);
+          };
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(rows).then(done).catch(() => { btn.textContent = t('copy_fail'); });
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = rows;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); done(); } catch (e) { btn.textContent = t('copy_fail'); }
+            document.body.removeChild(ta);
+          }
+        });
+      });
+    }
+
+    /* --------------------------------------------------------------------------
+       8. CHECKLIST TIẾN ĐỘ (04, 05, 06, 07) LƯU LOCALSTORAGE
+       -------------------------------------------------------------------------- */
+    function loadStepState() {
+      try {
+        return JSON.parse(localStorage.getItem('mochi_steps') || '{}');
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveStepState(state) {
+      safeSetStorage('mochi_steps', JSON.stringify(state));
+    }
+
+    function updateProgress() {
+      const checks = Array.from(document.querySelectorAll('.step-check'));
+      const done = checks.filter(c => c.checked).length;
+      const total = checks.length;
+      const pct = total ? Math.round((done / total) * 100) : 0;
+
+      const text = t('progress_label')
+        .replace('{done}', done)
+        .replace('{total}', total)
+        .replace('{pct}', pct);
+      document.getElementById('progressText').textContent = text;
+      document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    function initChecklist() {
+      const state = loadStepState();
+      const checks = document.querySelectorAll('.step-check');
+
+      checks.forEach(chk => {
+        const key = chk.getAttribute('data-step');
+        if (state[key]) {
+          chk.checked = true;
+          chk.closest('.step-item').classList.add('is-done');
+        }
+        chk.addEventListener('change', () => {
+          const cur = loadStepState();
+          cur[key] = chk.checked;
+          saveStepState(cur);
+          chk.closest('.step-item').classList.toggle('is-done', chk.checked);
+          updateProgress();
+        });
+      });
+
+      document.getElementById('btnResetProgress').addEventListener('click', () => {
+        checks.forEach(chk => {
+          chk.checked = false;
+          chk.closest('.step-item').classList.remove('is-done');
+        });
+        saveStepState({});
+        updateProgress();
+      });
+
+      updateProgress();
+    }
+
+    /* --------------------------------------------------------------------------
+       9. FAQ ACCORDION (TRUY CẬP BẰNG BÀN PHÍM)
+       -------------------------------------------------------------------------- */
+    function renderFaq() {
+      const list = I18N[currentLang].faqs;
+      const container = document.getElementById('faqList');
+      container.innerHTML = list.map((item, idx) => `
+        <div class="faq-item">
+          <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-panel-${idx}" id="faq-btn-${idx}">
+            <span>${item.q}</span>
+            <svg class="faq-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <div class="faq-panel" id="faq-panel-${idx}" role="region" aria-labelledby="faq-btn-${idx}" hidden>
+            <p style="margin:0;">${item.a}</p>
+          </div>
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.faq-trigger').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const expanded = btn.getAttribute('aria-expanded') === 'true';
+          btn.setAttribute('aria-expanded', !expanded);
+          document.getElementById(btn.getAttribute('aria-controls')).hidden = expanded;
+        });
+      });
+    }
+
+    /* --------------------------------------------------------------------------
+       10. LIGHTBOX PHÓNG TO ẢNH (ESC, NÚT X, GIỮ FOCUS)
+       -------------------------------------------------------------------------- */
+    let lastFocusedBeforeLightbox = null;
+
+    function openLightbox(src, caption) {
+      const lb = document.getElementById('lightbox');
+      const img = document.getElementById('lightboxImg');
+      const cap = document.getElementById('lightboxCaption');
+      lastFocusedBeforeLightbox = document.activeElement;
+      img.src = src;
+      img.alt = caption;
+      cap.textContent = caption;
+      lb.hidden = false;
+      document.getElementById('lightboxClose').focus();
+    }
+
+    function closeLightbox() {
+      const lb = document.getElementById('lightbox');
+      lb.hidden = true;
+      document.getElementById('lightboxImg').src = '';
+      if (lastFocusedBeforeLightbox) lastFocusedBeforeLightbox.focus();
+    }
+
+    function initLightbox() {
+      document.querySelectorAll('[data-lightbox]').forEach(el => {
+        el.setAttribute('tabindex', '0');
+        const trigger = () => {
+          if (!el.classList.contains('is-clickable')) return; // Bỏ qua nếu ảnh lỗi
+          const src = el.getAttribute('data-src');
+          const capKey = el.getAttribute('data-caption-key');
+          openLightbox(src, capKey ? t(capKey) : '');
+        };
+        el.addEventListener('click', trigger);
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            trigger();
+          }
+        });
+      });
+
+      document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+      document.getElementById('lightbox').addEventListener('click', (e) => {
+        if (e.target.id === 'lightbox') closeLightbox();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !document.getElementById('lightbox').hidden) {
+          closeLightbox();
+        }
+      });
+    }
+
+    /* --------------------------------------------------------------------------
+       11. MENU MOBILE, SCROLLSPY & REVEAL ANIMATION
+       -------------------------------------------------------------------------- */
+    function initNavAndObservers() {
+      const btnMenu = document.getElementById('btnMenu');
+      const mobileMenu = document.getElementById('mobileMenu');
+
+      btnMenu.addEventListener('click', () => {
+        const open = mobileMenu.classList.toggle('is-open');
+        btnMenu.setAttribute('aria-expanded', open);
+      });
+
+      mobileMenu.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+          mobileMenu.classList.remove('is-open');
+          btnMenu.setAttribute('aria-expanded', 'false');
+        });
+      });
+
+      // Highlight section đang xem trên thanh điều hướng
+      const sections = document.querySelectorAll('main section[id]');
+      const navLinks = document.querySelectorAll('#desktopNav a, #mobileMenu a');
+
+      if ('IntersectionObserver' in window) {
+        const spy = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const id = entry.target.id;
+              navLinks.forEach(a => {
+                a.setAttribute('aria-current', a.getAttribute('href') === '#' + id ? 'true' : 'false');
+              });
+            }
+          });
+        }, { rootMargin: '-30% 0px -60% 0px' });
+        sections.forEach(sec => spy.observe(sec));
+
+        // Hiệu ứng fade-up khi cuộn tới
+        const revealObs = new IntersectionObserver((entries, obs) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('is-visible');
+              obs.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.08 });
+        document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+      } else {
+        document.querySelectorAll('.reveal').forEach(el => el.classList.add('is-visible'));
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       12. KHỞI TẠO TOÀN TRANG
+       -------------------------------------------------------------------------- */
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      initOled();
+      initPartsPicker();
+      initWiringTabs();
+      initChecklist();
+      initLightbox();
+      initNavAndObservers();
+
+      // Nút đổi ngôn ngữ
+      document.getElementById('btnLangVi').addEventListener('click', () => applyLanguage('vi'));
+      document.getElementById('btnLangEn').addEventListener('click', () => applyLanguage('en'));
+
+      // Ngôn ngữ mặc định: localStorage -> navigator.language
+      const savedLang = safeGetStorage('mochi_lang');
+      const browserLang = (navigator.language || 'en').toLowerCase().startsWith('vi') ? 'vi' : 'en';
+      applyLanguage(savedLang || browserLang);
+    });
+  </script>
+</body>
+</html>
