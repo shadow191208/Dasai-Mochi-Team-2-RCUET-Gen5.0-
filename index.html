@@ -2514,7 +2514,7 @@
 
         footer_disclaimer: 'Trang hướng dẫn này là sản phẩm độc lập của cộng đồng, không phải trang chính thức của dự án The Mochi.',
         lb_close_aria: 'Đóng ảnh phóng to',
-        img_missing_label: 'Chưa có ảnh:'
+        img_missing_label: 'Thiếu ảnh. Hãy thêm tệp tại đường dẫn:'
       },
 
       en: {
@@ -2769,7 +2769,7 @@
 
         footer_disclaimer: 'This guide is an independent community resource and is not the official website of The Mochi project.',
         lb_close_aria: 'Close zoomed image',
-        img_missing_label: 'Missing image:'
+        img_missing_label: 'Image missing. Add the file at this path:'
       }
     };
 
@@ -2792,7 +2792,7 @@
     }
 
     // Xử lý fallback khi thiếu ảnh nội bộ hoặc lỗi tải ảnh
-    window.handleImgError = function(imgEl, filename) {
+    window.handleImgError = function(imgEl, imagePath) {
       const parent = imgEl.parentElement;
       if (!parent) return;
       imgEl.style.display = 'none';
@@ -2806,8 +2806,9 @@
           <polyline points="21 15 16 10 5 21"></polyline>
         </svg>
         <span data-i18n="img_missing_label">${t('img_missing_label')}</span>
-        <code>${filename}</code>
+        <code></code>
       `;
+      box.querySelector('code').textContent = imagePath;
       parent.appendChild(box);
       parent.classList.remove('is-clickable');
     };
@@ -3076,7 +3077,7 @@
             <tr>
               <td>
                 <div class="part-thumb">
-                  <img src="${item.img}" alt="${name}" width="76" height="58" loading="lazy" referrerpolicy="no-referrer" onerror="handleImgError(this, '${item.id}')">
+                  <img src="${item.img}" alt="${name}" width="76" height="58" loading="lazy" referrerpolicy="no-referrer" onerror="handleImgError(this, '${item.img}')">
                 </div>
               </td>
               <td><strong>${name}</strong></td>
