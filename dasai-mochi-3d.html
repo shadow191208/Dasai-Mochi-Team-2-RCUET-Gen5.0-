@@ -1,0 +1,3431 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Dasai Mochi DIY — Trình Xem 3D Khung Đồng &amp; Bản Vẽ Kỹ Thuật</title>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --bg-panel: rgba(255, 255, 255, 0.94);
+      --bg-card: #ffffff;
+      --bg-subtle: #eef2f6;
+      --border: #d5dce6;
+      --text: #16202e;
+      --text-muted: #526075;
+      --accent: #b8621b;
+      --accent-hover: #9a4f12;
+      --accent-soft: rgba(184, 98, 27, 0.13);
+      --info: #1d4ed8;
+      --success: #15803d;
+      --warn: #b45309;
+      --danger: #b91c1c;
+      --shadow: 0 8px 28px rgba(15, 23, 42, 0.10);
+      --canvas-bg: radial-gradient(circle at 50% 42%, #ffffff 0%, #e7ecf3 100%);
+      --grid-major: #cbd5e1;
+      --grid-minor: #e2e8f0;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d121a;
+        --bg-panel: rgba(20, 27, 38, 0.94);
+        --bg-card: #161f2c;
+        --bg-subtle: #1e293b;
+        --border: #2b394e;
+        --text: #e9eef5;
+        --text-muted: #94a3b8;
+        --accent: #e08b44;
+        --accent-hover: #f09d56;
+        --accent-soft: rgba(224, 139, 68, 0.16);
+        --info: #60a5fa;
+        --success: #4ade80;
+        --warn: #fbbf24;
+        --danger: #f87171;
+        --shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+        --canvas-bg: radial-gradient(circle at 50% 40%, #1c2636 0%, #0b0f17 100%);
+        --grid-major: #334155;
+        --grid-minor: #1e293b;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13.5px;
+      line-height: 1.45;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Layout khung ứng dụng */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+    }
+
+    /* Thanh điều hướng trên cùng */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 14px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      z-index: 30;
+      flex-shrink: 0;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 700;
+      font-size: 14.5px;
+      white-space: nowrap;
+    }
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, #d68942, #8f4e18);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 2px 6px rgba(184, 115, 51, 0.35);
+    }
+    .brand small {
+      font-weight: 500;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+
+    .tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 2px 0;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      padding: 6px 11px;
+      border-radius: 7px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .tab-btn:hover {
+      background: var(--bg-subtle);
+      color: var(--text);
+    }
+    .tab-btn.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: rgba(184, 115, 51, 0.35);
+    }
+
+    /* Khu vực nội dung chính */
+    .main {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+    }
+    .tab-panel {
+      display: none;
+      width: 100%;
+      height: 100%;
+    }
+    .tab-panel.active {
+      display: flex;
+    }
+
+    /* ================= TAB 1: MÔ HÌNH 3D ================= */
+    #panel-3d {
+      position: relative;
+      flex-direction: row;
+      overflow: hidden;
+    }
+    .viewport-wrap {
+      position: relative;
+      flex: 1;
+      height: 100%;
+      background: var(--canvas-bg);
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+    }
+    #canvas3d {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Lớp SVG đường dẫn nhãn + Overlay nhãn HTML */
+    #label-lines-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 6;
+    }
+    #labels-overlay, #dims-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 7;
+    }
+    .label-3d {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: var(--bg-panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      padding: 3px 7px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+      pointer-events: auto;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .label-3d:hover, .label-3d.selected {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+      z-index: 10;
+    }
+    .dim-badge {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: rgba(15, 23, 42, 0.82);
+      color: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 10.5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* Thanh công cụ nổi góc trên-trái 3D */
+    .hud-top-left {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      max-width: calc(100% - 350px);
+      z-index: 12;
+    }
+    .hud-group {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+    .hud-btn {
+      border: none;
+      background: transparent;
+      color: var(--text);
+      padding: 5px 8px;
+      border-radius: 5px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+    }
+    .hud-btn:hover { background: var(--bg-subtle); }
+    .hud-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Hộp thông tin chi tiết khi bấm vào 1 linh kiện/thanh */
+    .inspector-card {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      width: 315px;
+      max-width: calc(100% - 24px);
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 11px 13px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      z-index: 14;
+      display: none;
+    }
+    .inspector-card.visible { display: block; }
+    .inspector-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .inspector-title {
+      font-weight: 700;
+      font-size: 13.5px;
+      color: var(--accent);
+    }
+    .inspector-close {
+      border: none;
+      background: var(--bg-subtle);
+      color: var(--text);
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .inspector-grid {
+      display: grid;
+      grid-template-columns: 78px 1fr;
+      gap: 4px 8px;
+      font-size: 12px;
+    }
+    .inspector-grid dt { color: var(--text-muted); font-weight: 600; }
+    .inspector-grid dd { color: var(--text); margin: 0; }
+    .inspector-note {
+      margin-top: 7px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      font-size: 11.5px;
+      color: var(--text);
+    }
+
+    /* Thanh thông báo đo 2 điểm & hover */
+    .measure-banner {
+      position: absolute;
+      top: 52px;
+      left: 10px;
+      background: rgba(14, 116, 144, 0.94);
+      color: #fff;
+      padding: 6px 11px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: var(--shadow);
+      z-index: 13;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .measure-banner.visible { display: flex; }
+    .measure-banner button {
+      border: 1px solid rgba(255,255,255,0.45);
+      background: rgba(255,255,255,0.16);
+      color: #fff;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .hover-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.9);
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 5px;
+      font-size: 11.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      z-index: 20;
+      display: none;
+      transform: translate(12px, -28px);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+    }
+
+    .hint-bar {
+      position: absolute;
+      bottom: 10px;
+      right: 344px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      padding: 4px 9px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      z-index: 8;
+      pointer-events: none;
+    }
+
+    /* Bảng điều khiển bên phải (thu gọn được) */
+    .sidebar {
+      width: 332px;
+      height: 100%;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 18;
+      transition: transform 0.22s ease, width 0.22s ease;
+      flex-shrink: 0;
+    }
+    .sidebar.collapsed {
+      width: 0;
+      border-left: none;
+      overflow: hidden;
+    }
+    .sidebar-toggle-fab {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 22;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+    }
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 13px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 11px 13px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+    }
+    .ctrl-section {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 9px 11px;
+    }
+    .ctrl-section h4 {
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .slider-row {
+      margin-bottom: 9px;
+    }
+    .slider-row:last-child { margin-bottom: 0; }
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+    .slider-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .btn-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .btn-sm {
+      flex: 1;
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .layer-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .layer-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 2px 0;
+    }
+    .layer-item-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .swatch {
+      width: 11px;
+      height: 11px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      border: 1px solid rgba(0,0,0,0.2);
+    }
+    .layer-item input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+
+    /* Fallback khi mất mạng không tải được Three.js */
+    .webgl-fallback {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      background: var(--bg);
+      z-index: 25;
+    }
+    .webgl-fallback.visible { display: flex; }
+    .webgl-fallback-box {
+      max-width: 480px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-top: 4px solid var(--warn);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    /* ================= CÁC TAB TÀI LIỆU / BẢN VẼ / BẢNG ================= */
+    .doc-panel {
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 18px 20px 36px;
+    }
+    .doc-container {
+      max-width: 1180px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .doc-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .doc-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .doc-header p {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 2px;
+    }
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .action-btn:hover { background: var(--accent-hover); }
+    .action-btn.secondary {
+      background: var(--bg-card);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .action-btn.secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Bản vẽ SVG 3 hình chiếu */
+    .drawings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+      gap: 16px;
+    }
+    .drawing-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    }
+    .drawing-card h3 {
+      font-size: 13.5px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+    .drawing-card svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+    }
+
+    /* Bảng dữ liệu */
+    .table-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+    .table-card-title {
+      padding: 11px 14px;
+      font-weight: 700;
+      font-size: 14px;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border);
+    }
+    .table-scroll {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--bg-subtle);
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr.total-row td {
+      background: var(--accent-soft);
+      font-weight: 700;
+      color: var(--text);
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    /* Các bước lắp ráp */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 13px;
+    }
+    .step-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .step-head {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 5px;
+    }
+    .step-num {
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-title {
+      font-weight: 700;
+      font-size: 13.5px;
+    }
+    .step-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    /* Lưu ý kỹ thuật */
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 14px;
+    }
+    .note-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--warn);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .note-box.danger { border-left-color: var(--danger); }
+    .note-box.info { border-left-color: var(--info); }
+    .note-box h3 {
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+    .note-box p, .note-box li {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .note-box ul {
+      padding-left: 18px;
+      margin-top: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #16202e;
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease;
+      z-index: 100;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Responsive cho điện thoại */
+    @media (max-width: 820px) {
+      .brand small { display: none; }
+      #panel-3d { flex-direction: column; }
+      .hud-top-left { max-width: calc(100% - 95px); }
+      .hint-bar { display: none; }
+      .sidebar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 46%;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        border-radius: 14px 14px 0 0;
+        box-shadow: 0 -6px 24px rgba(0,0,0,0.2);
+      }
+      .sidebar.collapsed {
+        width: 100%;
+        height: 0;
+        border-top: none;
+      }
+      .inspector-card {
+        top: 54px;
+        bottom: auto;
+        left: 10px;
+        width: calc(100% - 20px);
+      }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <!-- Thanh điều hướng trên cùng -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-badge">DM</span>
+      <span>Dasai Mochi DIY <small>Khung đồng Ø1,5 mm • 32 × 32 × 53 mm</small></span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="3d">Mô hình 3D</button>
+      <button class="tab-btn" data-tab="drawings">Bản vẽ kích thước</button>
+      <button class="tab-btn" data-tab="cutlist">Bảng cắt thanh</button>
+      <button class="tab-btn" data-tab="bom">Linh kiện &amp; đấu dây</button>
+      <button class="tab-btn" data-tab="assembly">Lắp ráp</button>
+      <button class="tab-btn" data-tab="notes">Lưu ý</button>
+    </nav>
+  </header>
+
+  <main class="main">
+    <!-- ================= TAB 1: MÔ HÌNH 3D ================= -->
+    <section id="panel-3d" class="tab-panel active">
+      <div class="viewport-wrap" id="viewport-wrap">
+        <canvas id="canvas3d"></canvas>
+        <svg id="label-lines-svg"></svg>
+        <div id="labels-overlay"></div>
+        <div id="dims-overlay"></div>
+
+        <!-- Nút điều khiển nhanh góc nhìn & công cụ -->
+        <div class="hud-top-left">
+          <div class="hud-group" title="Góc nhìn nhanh">
+            <button class="hud-btn active" data-view="iso">Chéo</button>
+            <button class="hud-btn" data-view="front">Trước</button>
+            <button class="hud-btn" data-view="back">Sau</button>
+            <button class="hud-btn" data-view="left">Trái</button>
+            <button class="hud-btn" data-view="right">Phải</button>
+            <button class="hud-btn" data-view="top">Trên</button>
+            <button class="hud-btn" data-view="bottom">Dưới</button>
+            <button class="hud-btn" id="btn-reset" title="Đặt lại góc nhìn &amp; thông số">Đặt lại</button>
+          </div>
+          <div class="hud-group">
+            <button class="hud-btn" id="btn-autorotate">Tự xoay</button>
+            <button class="hud-btn" id="btn-ortho">Trực giao</button>
+            <button class="hud-btn" id="btn-measure">Đo 2 điểm</button>
+          </div>
+        </div>
+
+        <!-- Thông báo chế độ đo -->
+        <div class="measure-banner" id="measure-banner">
+          <span id="measure-text">Chế độ Đo: Bấm điểm thứ 1 trên khung hoặc linh kiện...</span>
+          <button id="btn-clear-measure">Xóa đo</button>
+        </div>
+
+        <!-- Tooltip khi di chuột lên linh kiện -->
+        <div class="hover-tooltip" id="hover-tooltip"></div>
+
+        <!-- Hộp thông tin chi tiết khi bấm vào chi tiết -->
+        <aside class="inspector-card" id="inspector-card">
+          <div class="inspector-header">
+            <div class="inspector-title" id="insp-title">Chi tiết</div>
+            <button class="inspector-close" id="insp-close" title="Đóng">×</button>
+          </div>
+          <dl class="inspector-grid" id="insp-grid"></dl>
+          <div class="inspector-note" id="insp-note"></div>
+        </aside>
+
+        <div class="hint-bar">Kéo trái: Xoay • Kéo phải / Shift+Kéo: Di chuyển • Lăn: Zoom • Bấm chi tiết để xem</div>
+
+        <!-- Thông báo nếu không tải được Three.js -->
+        <div class="webgl-fallback" id="webgl-fallback">
+          <div class="webgl-fallback-box">
+            <h3 style="color:var(--warn); margin-bottom:8px;">Không thể tải thư viện đồ họa 3D (Three.js)</h3>
+            <p style="margin-bottom:12px;">Trình duyệt hiện không kết nối được tới CDN <code>cdnjs.cloudflare.com</code> để nạp Three.js r128. Vui lòng kiểm tra kết nối mạng và tải lại trang.</p>
+            <p style="font-size:12.5px; color:var(--text-muted); margin-bottom:14px;">Bạn vẫn có thể xem đầy đủ <strong>Bản vẽ kích thước 2D</strong>, <strong>Bảng cắt thanh</strong>, <strong>Linh kiện &amp; đấu dây</strong>, <strong>Hướng dẫn lắp ráp</strong> và <strong>Lưu ý</strong> ở các tab phía trên.</p>
+            <button class="action-btn" onclick="document.querySelector('[data-tab=drawings]').click()">Mở Bản vẽ kích thước 2D</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nút mở/đóng bảng điều khiển -->
+      <button class="sidebar-toggle-fab" id="btn-toggle-sidebar">Bảng điều khiển</button>
+
+      <!-- Bảng điều khiển bên phải -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <span>Điều khiển &amp; Lớp hiển thị</span>
+          <button class="hud-btn" id="btn-collapse-sidebar" title="Thu gọn">Thu gọn ▸</button>
+        </div>
+        <div class="sidebar-body">
+          <!-- Thanh trượt hiển thị -->
+          <div class="ctrl-section">
+            <h4>Hiển thị &amp; Tách lớp</h4>
+            <div class="slider-row">
+              <div class="slider-label">
+                <span>Làm mờ khung đồng</span>
+                <span id="val-opacity">0%</span>
+              </div>
+              <input type="range" id="sl-opacity" min="0" max="95" step="5" value="0" />
+            </div>
+            <div class="slider-row">
+              <div class="slider-label">
+                <span>Độ dày ống đồng</span>
+                <span id="val-diameter">1,5 mm</span>
+              </div>
+              <input type="range" id="sl-diameter" min="1.0" max="4.0" step="0.1" value="1.5" />
+              <div class="slider-note">1,5 mm là kích thước thật, tăng lên để dễ nhìn</div>
+            </div>
+            <div class="slider-row">
+              <div class="slider-label">
+                <span>Tách tầng theo trục Y</span>
+                <span id="val-explode">0%</span>
+              </div>
+              <input type="range" id="sl-explode" min="0" max="100" step="1" value="0" />
+              <div class="btn-row">
+                <button class="btn-sm primary" id="btn-explode-toggle">Tách hết / Gộp lại</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lớp khung đồng -->
+          <div class="ctrl-section">
+            <h4>Khung đồng &amp; Mối nối</h4>
+            <div class="layer-list" id="layers-frame"></div>
+          </div>
+
+          <!-- Lớp linh kiện điện tử -->
+          <div class="ctrl-section">
+            <h4>Linh kiện điện tử</h4>
+            <div class="layer-list" id="layers-parts"></div>
+          </div>
+
+          <!-- Lớp dây nối -->
+          <div class="ctrl-section">
+            <h4>Dây đấu nối</h4>
+            <div class="layer-list" id="layers-wires"></div>
+          </div>
+
+          <!-- Lớp hỗ trợ -->
+          <div class="ctrl-section">
+            <h4>Trợ giúp trực quan</h4>
+            <div class="layer-list" id="layers-helpers"></div>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ================= TAB 2: BẢN VẼ KÍCH THƯỚC 2D ================= -->
+    <section id="panel-drawings" class="tab-panel doc-panel">
+      <div class="doc-container">
+        <div class="doc-header">
+          <div>
+            <h2>Bản vẽ kỹ thuật 3 hình chiếu (Tỉ lệ chuẩn từ CONFIG)</h2>
+            <p>Đơn vị: mm • Tọa độ tâm thanh đồng • Phủ bì: <span id="drw-outer">33,5 × 33,5 × 54,5</span> mm • Lọt lòng: <span id="drw-inner">30,5 × 30,5</span> mm</p>
+          </div>
+          <button class="action-btn" id="btn-download-svg">Tải file SVG</button>
+        </div>
+        <div class="drawings-grid" id="drawings-container"></div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: BẢNG CẮT THANH ================= -->
+    <section id="panel-cutlist" class="tab-panel doc-panel">
+      <div class="doc-container">
+        <div class="doc-header">
+          <div>
+            <h2>Bảng cắt thanh đồng (Đường kính <span id="cut-dia-label">1,5</span> mm)</h2>
+            <p>Chiều dài cắt đã trừ đường kính thanh nối tại các mối hàn vuông góc (tâm-đến-tâm trừ Ø ống).</p>
+          </div>
+          <button class="action-btn" id="btn-copy-cutlist">Sao chép bảng</button>
+        </div>
+        <div class="table-card">
+          <div class="table-scroll" id="cutlist-table-wrap"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: LINH KIỆN VÀ ĐẤU DÂY ================= -->
+    <section id="panel-bom" class="tab-panel doc-panel">
+      <div class="doc-container">
+        <div class="doc-header">
+          <div>
+            <h2>Danh sách linh kiện &amp; Sơ đồ đấu dây chi tiết</h2>
+            <p>Tọa độ bố trí trong hệ trục (X: 0→32, Y: 0→32, Z: 0→53 mm) đảm bảo không chạm chập khung đồng.</p>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-card-title">1. Bảng kích thước &amp; vị trí lắp đặt linh kiện</div>
+          <div class="table-scroll" id="parts-table-wrap"></div>
+        </div>
+        <div class="table-card">
+          <div class="table-card-title">2. Sơ đồ hàn dây tín hiệu và nguồn</div>
+          <div class="table-scroll" id="wires-table-wrap"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 5: LẮP RÁP ================= -->
+    <section id="panel-assembly" class="tab-panel doc-panel">
+      <div class="doc-container">
+        <div class="doc-header">
+          <div>
+            <h2>Quy trình lắp ráp 10 bước chuẩn kỹ thuật</h2>
+            <p>Bấm <strong>"Xem bước này trong 3D"</strong> ở từng bước để xem trực quan vị trí các thanh và linh kiện cần thao tác.</p>
+          </div>
+        </div>
+        <div class="steps-grid" id="assembly-steps-wrap"></div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 6: LƯU Ý ================= -->
+    <section id="panel-notes" class="tab-panel doc-panel">
+      <div class="doc-container">
+        <div class="doc-header">
+          <div>
+            <h2>Lưu ý an toàn điện &amp; Kinh nghiệm gia công khung đồng</h2>
+            <p>Đọc kỹ trước khi hàn mạch và cấp nguồn để tránh hỏng ESP32-C3 hoặc chập pin LiPo.</p>
+          </div>
+        </div>
+        <div class="notes-grid" id="notes-wrap"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================================
+   1. CẤU HÌNH TRUNG TÂM (CONFIG) - MỌI KÍCH THƯỚC VÀ TỌA ĐỘ SINH TỪ ĐÂY
+   ============================================================================ */
+const CONFIG = {
+  frame: {
+    width: 32,          // X: 0 -> 32 mm (tâm thanh)
+    height: 32,         // Y: 0 -> 32 mm (tâm thanh)
+    depth: 53,          // Z: 0 (mặt trước) -> 53 (mặt sau)
+    rodDiameter: 1.5,   // Đường kính ống đồng mặc định (mm)
+    loopOverlap: 6,     // Chồng mối nối 3 mm mỗi bên ở cạnh trên vòng trước/sau
+    legStraight: 10,    // Phần chân thẳng từ Y = 0 xuống Y = -10 mm
+    legFoot: 4,         // Phần đế gập ngang ra ngoài 4 mm
+    legOverlap: 3,      // Phần chồng hàn vào thanh đứng góc khung 3 mm
+    legSplayDeg: 20,    // Góc xòe chân tùy chọn (~20 độ)
+    sleeveClearance: 0.7 // Độ dày ống co nhiệt cộng thêm vào đường kính ống (1.5 + 0.7 = 2.2 mm)
+  },
+  colors: {
+    copper: 0xB87333,
+    solder: 0xC9CED6,
+    heatshrink: 0xE6B800,
+    thread: 0xB8C0CC
+  },
+  // Các thanh chống ngang theo từng tầng (tọa độ tâm)
+  crossbars: {
+    y0: [
+      { z: 9,  insulate: false, role: "Đỡ Buzzer (cạnh trước)" },
+      { z: 17, insulate: false, role: "Đỡ Buzzer (cạnh sau)" },
+      { z: 26, insulate: true,  role: "Đỡ Pin LiPo 3,7V (bọc cách điện)" },
+      { z: 46, insulate: true,  role: "Đỡ Pin LiPo 3,7V (bọc cách điện)" }
+    ],
+    y10: [
+      { z: 30, insulate: true,  role: "Đỡ mạch sạc TP4056 (bọc cách điện)" },
+      { z: 50, insulate: true,  role: "Đỡ mạch sạc TP4056 (bọc cách điện)" }
+    ],
+    y20: [
+      { z: 39, insulate: true,  role: "Đỡ ESP32-C3 Super Mini (bọc cách điện)" },
+      { z: 50, insulate: true,  role: "Đỡ ESP32-C3 Super Mini (bọc cách điện)" }
+    ],
+    y32: [
+      { z: 22.5, insulate: true, role: "Đỡ cảm biến chạm TTP223 (bọc cách điện)" },
+      { z: 30.5, insulate: true, role: "Đỡ cảm biến chạm TTP223 (bọc cách điện)" }
+    ]
+  },
+  tiersY: [0, 10, 20, 32],
+  // Thông số 6 linh kiện điện tử
+  components: {
+    oled: {
+      id: "oled",
+      name: "Màn hình OLED 0,96\" 128×64",
+      shortName: "OLED 0,96\"",
+      colorHex: "#1F5FA8",
+      pcb: { w: 27.3, h: 27.8, d: 1.2 },
+      glass: { w: 26.4, h: 18.6, d: 1.4 },
+      active: { w: 21.7, h: 10.9 },
+      center: { x: 16, y: 16 },
+      frontZ: 1.5, // Lùi sau vòng trước 1 mm
+      totalDepth: 4.0,
+      tierGroup: "front",
+      mount: "Treo bằng 4 sợi chỉ/cước mảnh qua 4 lỗ góc vào vòng đồng trước (Z = 0).",
+      pins: "VCC → 3V3 | GND → G | SDA → GPIO8 | SCL → GPIO9",
+      note: "Mặt kính hướng ra trước (Z = 1,5). Không để mặt sau PCB chạm vào thanh dọc hoặc chân linh kiện khác."
+    },
+    buzzer: {
+      id: "buzzer",
+      name: "Buzzer (Còi chip Ø12×9)",
+      shortName: "Buzzer Ø12",
+      colorHex: "#2A2E35",
+      diameter: 12,
+      height: 9,
+      center: { x: 16, z: 13 },
+      bottomY: 0.75,
+      tierGroup: "y0",
+      mount: "Đặt trên 2 thanh ngang đáy Y = 0 tại Z = 9 và Z = 17, cố định bằng keo nến/epoxy.",
+      pins: "Chân (+) → GPIO5 (qua trở 100–220 Ω) | Chân (-) → GND",
+      note: "Hướng lỗ phát âm lên trên hoặc ra khe hở khung để âm thanh to, rõ."
+    },
+    battery: {
+      id: "battery",
+      name: "Pin LiPo 3,7V (25×6×30 mm)",
+      shortName: "Pin LiPo 3,7V",
+      colorHex: "#4A78B5",
+      size: { w: 25, h: 6, d: 30 },
+      range: { x: [3.5, 28.5], y: [0.75, 6.75], z: [21, 51] },
+      tierGroup: "y0",
+      mount: "Nằm trên 2 thanh ngang đáy bọc ống co nhiệt tại Z = 26 và Z = 46.",
+      pins: "Dây đỏ (B+) → TP4056 B+ | Dây đen (B-) → TP4056 B-",
+      note: "Bắt buộc bọc cách điện 2 thanh đỡ bên dưới và tránh làm trầy vỏ túi nhôm pin LiPo."
+    },
+    tp4056: {
+      id: "tp4056",
+      name: "Mạch sạc TP4056 (có bảo vệ)",
+      shortName: "Mạch sạc TP4056",
+      colorHex: "#1D4ED8",
+      size: { w: 17, h: 1.2, d: 26 },
+      topMaxY: 14.75,
+      range: { x: [7.5, 24.5], y: [10.75, 14.75], z: [27, 53] },
+      usb: { w: 7.5, h: 2.5, d: 5.5 },
+      tierGroup: "y10",
+      mount: "Đặt trên 2 thanh ngang tầng Y = 10 (Z = 30 và Z = 50) đã bọc ống co nhiệt vàng.",
+      pins: "B+/B- ↔ Pin | OUT+ → ESP32 5V (qua diode Schottky) | OUT- → ESP32 G",
+      note: "Cổng Micro-USB quay ra mặt sau mở (Z = 53). Phải bọc cách điện thanh đỡ để tránh chập đáy mạch."
+    },
+    esp32: {
+      id: "esp32",
+      name: "ESP32-C3 Super Mini",
+      shortName: "ESP32-C3 Mini",
+      colorHex: "#141414",
+      size: { w: 18, h: 1.0, d: 22.5 },
+      topMaxY: 25.2,
+      range: { x: [7, 25], y: [20.75, 25.2], z: [31, 53.5] },
+      usb: { w: 9, h: 3.2, d: 7.3 },
+      antennaZ: [31, 35.5],
+      tierGroup: "y20",
+      mount: "Đặt trên 2 thanh ngang tầng Y = 20 (Z = 39 và Z = 50) đã bọc ống co nhiệt vàng.",
+      pins: "3V3, 5V, G, GPIO4 (Touch), GPIO5 (Buzzer), GPIO8 (SDA), GPIO9 (SCL)",
+      note: "Đầu ăng-ten (Z = 31..35,5) nhô ra phía trước khỏi thanh Z = 39, không có kim loại sát để giữ sóng Wi-Fi/BLE mạnh."
+    },
+    touch: {
+      id: "touch",
+      name: "Cảm biến chạm TTP223",
+      shortName: "Cảm biến TTP223",
+      colorHex: "#D62828",
+      size: { w: 15, h: 1.2, d: 11 },
+      range: { x: [8.5, 23.5], y: [32.75, 33.95], z: [21, 32] },
+      padDiameter: 10,
+      tierGroup: "y32",
+      mount: "Đặt trên 2 thanh ngang mặt trên Y = 32 (Z = 22,5 và Z = 30,5) bọc cách điện, mặt chạm hướng lên.",
+      pins: "VCC → ESP32 3V3 | GND → ESP32 G | I/O → ESP32 GPIO4",
+      note: "Chạm nhẹ ngón tay vào vòng tròn TOUCH phía trên để đổi biểu cảm Mochi."
+    }
+  },
+  // Định nghĩa 5 nhóm dây nối
+  wireGroups: [
+    {
+      id: "oled_esp",
+      name: "OLED ↔ ESP32-C3",
+      colorHex: "#22C55E",
+      wires: [
+        { from: "OLED VCC", to: "ESP32 3V3", colorName: "Đỏ", color: 0xEF4444, note: "Nguồn 3,3V cho màn hình",
+          pts: [[12.5, 27.5, 4.8], [3.2, 27.5, 8], [2.5, 24.5, 24], [5.5, 22.2, 37.5], [7.5, 21.8, 38.0]] },
+        { from: "OLED GND", to: "ESP32 G", colorName: "Đen", color: 0x1F2937, note: "Mass chung",
+          pts: [[14.8, 27.5, 4.8], [3.8, 28.2, 9], [3.0, 25.2, 25], [5.8, 22.5, 39.2], [7.5, 21.8, 40.0]] },
+        { from: "OLED SCL", to: "ESP32 GPIO9", colorName: "Vàng", color: 0xEAB308, note: "Xung nhịp I2C SCL",
+          pts: [[17.2, 27.5, 4.8], [28.2, 28.0, 9], [29.0, 25.0, 26], [26.2, 22.4, 41.0], [24.5, 21.8, 42.0]] },
+        { from: "OLED SDA", to: "ESP32 GPIO8", colorName: "Xanh lá", color: 0x22C55E, note: "Dữ liệu I2C SDA",
+          pts: [[19.5, 27.5, 4.8], [28.8, 27.3, 10], [29.5, 24.4, 27], [26.5, 22.1, 43.0], [24.5, 21.8, 44.0]] }
+      ]
+    },
+    {
+      id: "touch_esp",
+      name: "TTP223 ↔ ESP32-C3",
+      colorHex: "#3B82F6",
+      wires: [
+        { from: "TTP223 VCC", to: "ESP32 3V3", colorName: "Đỏ", color: 0xEF4444, note: "Nguồn 3,3V cảm biến chạm",
+          pts: [[13.5, 32.5, 26.5], [6.5, 30.8, 27.5], [4.5, 26.5, 32.0], [6.2, 22.6, 37.2], [7.5, 21.8, 38.0]] },
+        { from: "TTP223 I/O", to: "ESP32 GPIO4", colorName: "Xanh dương", color: 0x3B82F6, note: "Tín hiệu chạm mức cao",
+          pts: [[16.0, 32.5, 26.5], [6.0, 30.2, 29.0], [4.2, 26.0, 35.0], [6.0, 22.5, 41.5], [7.5, 21.8, 42.2]] },
+        { from: "TTP223 GND", to: "ESP32 G", colorName: "Đen", color: 0x1F2937, note: "Mass cảm biến chạm",
+          pts: [[18.5, 32.5, 26.5], [5.5, 29.6, 30.5], [4.0, 25.5, 37.5], [6.0, 22.3, 39.8], [7.5, 21.8, 40.0]] }
+      ]
+    },
+    {
+      id: "buzzer_esp",
+      name: "Buzzer ↔ ESP32-C3",
+      colorHex: "#A855F7",
+      wires: [
+        { from: "Buzzer (+)", to: "ESP32 GPIO5", colorName: "Tím (có trở 150 Ω)", color: 0xA855F7, note: "Mắc nối tiếp điện trở 100–220 Ω bảo vệ GPIO5",
+          inlinePart: { type: "resistor", atIndex: 2, label: "Điện trở 150 Ω" },
+          pts: [[21.5, 3.0, 13.0], [29.2, 5.5, 15.0], [29.5, 14.5, 24.0], [28.5, 21.8, 38.0], [24.5, 21.8, 46.0]] },
+        { from: "Buzzer (-)", to: "ESP32 G", colorName: "Đen", color: 0x1F2937, note: "Mass Buzzer",
+          pts: [[10.5, 3.0, 13.0], [2.8, 5.5, 15.0], [2.5, 14.5, 26.0], [4.2, 21.8, 38.5], [7.5, 21.8, 40.0]] }
+      ]
+    },
+    {
+      id: "bat_tp",
+      name: "Pin LiPo ↔ TP4056",
+      colorHex: "#EF4444",
+      wires: [
+        { from: "Pin LiPo B+", to: "TP4056 B+", colorName: "Đỏ", color: 0xEF4444, note: "Cực dương pin 3,7V",
+          pts: [[13.5, 4.5, 21.0], [9.5, 7.2, 22.5], [8.5, 10.5, 25.5], [11.5, 11.9, 28.0]] },
+        { from: "Pin LiPo B-", to: "TP4056 B-", colorName: "Đen", color: 0x1F2937, note: "Cực âm pin 3,7V",
+          pts: [[18.5, 4.5, 21.0], [22.5, 7.2, 22.5], [23.5, 10.5, 25.5], [20.5, 11.9, 28.0]] }
+      ]
+    },
+    {
+      id: "tp_esp",
+      name: "TP4056 ↔ ESP32-C3",
+      colorHex: "#F97316",
+      wires: [
+        { from: "TP4056 OUT+", to: "ESP32 5V", colorName: "Cam (có diode Schottky)", color: 0xF97316, note: "Qua diode Schottky chống ngược dòng vào chân 5V",
+          inlinePart: { type: "diode", atIndex: 2, label: "Diode Schottky" },
+          pts: [[9.5, 12.0, 28.5], [4.5, 14.2, 31.0], [4.2, 18.2, 34.5], [5.8, 21.6, 36.2], [7.5, 21.8, 36.2]] },
+        { from: "TP4056 OUT-", to: "ESP32 G", colorName: "Đen", color: 0x1F2937, note: "Mass nguồn từ TP4056",
+          pts: [[22.5, 12.0, 28.5], [27.5, 14.5, 32.0], [27.5, 19.0, 36.5], [16.0, 20.3, 39.5], [7.5, 21.4, 40.0]] }
+      ]
+    }
+  ],
+  // 10 bước lắp ráp
+  assemblySteps: [
+    {
+      step: 1,
+      title: "Uốn 2 vòng khung trước và sau",
+      desc: "Cắt 2 đoạn đồng Ø1,5 mm dài 134 mm. Uốn mỗi đoạn thành hình vuông 32 × 32 mm (tâm thanh) với 3 góc vuông 90° và chồng mép 3 mm mỗi bên ở giữa cạnh trên, hàn kín mối chồng.",
+      layers: { frameMain: true, y0: false, y10: false, y20: false, y32: false, legs: false, diag: false, solder: true, sleeve: false, parts: [], wires: [] },
+      highlight: "loops"
+    },
+    {
+      step: 2,
+      title: "Hàn khung hộp chính (4 thanh dọc)",
+      desc: "Cắt 4 thanh dọc dài 51,5 mm. Hàn nối 4 góc của vòng trước (Z = 0) với vòng sau (Z = 53), dùng thước góc vuông kiểm tra để khung hộp cân đối, không bị vặn xoắn.",
+      layers: { frameMain: true, y0: false, y10: false, y20: false, y32: false, legs: false, diag: false, solder: true, sleeve: false, parts: [], wires: [] },
+      highlight: "frameMain"
+    },
+    {
+      step: 3,
+      title: "Hàn ray dọc, thanh chống các tầng & thanh chéo",
+      desc: "Hàn 4 ray dọc (51,5 mm) tại Y = 10 và Y = 20. Hàn toàn bộ 10 thanh ngang đỡ linh kiện (30,5 mm) tại Y = 0, Y = 10, Y = 20, Y = 32 và thanh chéo 62 mm bên mặt X = 32.",
+      layers: { frameMain: true, y0: true, y10: true, y20: true, y32: true, legs: false, diag: true, solder: true, sleeve: false, parts: [], wires: [] },
+      highlight: "crossbars"
+    },
+    {
+      step: 4,
+      title: "Hàn 4 chân đế",
+      desc: "Cắt 4 đoạn dài 17 mm (3 mm chồng hàn vào thanh đứng góc + 10 mm thẳng xuống Y = -10 + 4 mm gập ngang làm đế). Cân chỉnh trên mặt bàn phẳng để 4 chân chạm đều.",
+      layers: { frameMain: true, y0: true, y10: true, y20: true, y32: true, legs: true, diag: true, solder: true, sleeve: false, parts: [], wires: [] },
+      highlight: "legs"
+    },
+    {
+      step: 5,
+      title: "Rửa sạch trợ hàn & bọc ống co nhiệt cách điện",
+      desc: "Rửa sạch toàn bộ trợ hàn axit bằng cồn IPA hoặc nước xà phòng ấm, lau khô. Luồn và khò ống co nhiệt vàng Ø2,2 mm bọc kín 8 thanh ngang đỡ pin và bo mạch.",
+      layers: { frameMain: true, y0: true, y10: true, y20: true, y32: true, legs: true, diag: true, solder: true, sleeve: true, parts: [], wires: [] },
+      highlight: "sleeve"
+    },
+    {
+      step: 6,
+      title: "Treo màn hình OLED 0,96\" ở mặt trước",
+      desc: "Hàn sẵn 4 dây mềm vào mặt sau OLED. Đặt OLED lùi sau vòng trước 1 mm (mặt kính tại Z = 1,5), dùng 4 sợi chỉ/cước mảnh buộc căng qua 4 lỗ góc vào 4 góc vòng đồng trước.",
+      layers: { frameMain: true, y0: true, y10: true, y20: true, y32: true, legs: true, diag: true, solder: true, sleeve: true, parts: ["oled"], wires: [] },
+      highlight: "oled"
+    },
+    {
+      step: 7,
+      title: "Đặt Pin LiPo 3,7V và Buzzer lên tầng đáy Y = 0",
+      desc: "Đặt Buzzer Ø12×9 lên 2 thanh Z = 9 và Z = 17; đặt Pin LiPo 3,7V lên 2 thanh bọc cách điện Z = 26 và Z = 46 (đầu dây pin hướng về Z = 21). Cố định nhẹ bằng băng dính hai mặt mỏng.",
+      layers: { frameMain: true, y0: true, y10: true, y20: true, y32: true, legs: true, diag: true, solder: true, sleeve: true, parts: ["oled", "buzzer", "battery"], wires: [] },
+      highlight: "battery"
+    },
+    {
+      step: 8,
+      title: "Lắp TP4056 (Y = 10), ESP32-C3 (Y = 20) & TTP223 (Y = 32)",
+      desc: "Đặt TP4056 lên tầng Y = 10 và ESP32-C3 lên tầng Y = 20 với cổng Micro-USB và USB-C quay thẳng ra mặt sau (Z = 53), đầu ăng-ten ESP32 hướng về trước. Đặt TTP223 lên đỉnh Y = 32.",
+      layers: { frameMain: true, y0: true, y10: true, y20: true, y32: true, legs: true, diag: true, solder: true, sleeve: true, parts: ["oled", "buzzer", "battery", "tp4056", "esp32", "touch"], wires: [] },
+      highlight: "esp32"
+    },
+    {
+      step: 9,
+      title: "Hàn dây tín hiệu, điện trở Buzzer & diode Schottky",
+      desc: "Đi dây gọn sát mép trong khung: hàn dây I2C OLED, dây TTP223, dây Buzzer (kèm điện trở 100–220 Ω nối tiếp GPIO5), dây Pin ↔ TP4056 và đường OUT+ → 5V qua diode Schottky.",
+      layers: { frameMain: true, y0: true, y10: true, y20: true, y32: true, legs: true, diag: true, solder: true, sleeve: true, parts: ["oled", "buzzer", "battery", "tp4056", "esp32", "touch"], wires: ["oled_esp", "touch_esp", "buzzer_esp", "bat_tp", "tp_esp"] },
+      highlight: "wires"
+    },
+    {
+      step: 10,
+      title: "Kiểm tra chập mạch trước khi cấp nguồn",
+      desc: "Dùng đồng hồ vạn năng thang đo thông mạch kiểm tra giữa khung đồng với các chân 3V3, 5V, B+, GND đảm bảo không chạm chập. Nạp thử firmware qua USB-C trước khi hàn cố định dây pin.",
+      layers: { frameMain: true, y0: true, y10: true, y20: true, y32: true, legs: true, diag: true, solder: true, sleeve: true, parts: ["oled", "buzzer", "battery", "tp4056", "esp32", "touch"], wires: ["oled_esp", "touch_esp", "buzzer_esp", "bat_tp", "tp_esp"] },
+      highlight: "all"
+    }
+  ],
+  // Lưu ý an toàn & kỹ thuật
+  notes: [
+    {
+      type: "danger",
+      title: "1. Khung đồng dẫn điện hoàn toàn — Bắt buộc cách điện",
+      items: [
+        "Toàn bộ khung đồng đóng vai trò như một khối kim loại dẫn điện liên thông.",
+        "Phải bọc ống co nhiệt cách điện tại tất cả các thanh ngang đỡ TP4056, ESP32-C3, TTP223 và Pin LiPo.",
+        "Cắt gọn chân linh kiện xuyên lỗ dưới đáy bo mạch (nếu có) để không đâm thủng lớp ống co nhiệt."
+      ]
+    },
+    {
+      type: "danger",
+      title: "2. Không cấp 4,2V vào chân 3V3 & Dùng diode Schottky",
+      items: [
+        "Pin LiPo sạc đầy đạt điện áp 4,2 V — tuyệt đối KHÔNG hàn trực tiếp OUT+ của TP4056 vào chân 3V3 của ESP32-C3 (sẽ làm hỏng chip ngay lập tức).",
+        "Luôn nối OUT+ vào chân 5V (đi qua IC ổn áp LDO 3,3V trên mạch) và mắc thêm 1 diode Schottky (như 1N5819 / SS14) để chặn dòng ngược khi cắm cáp USB-C nạp code."
+      ]
+    },
+    {
+      type: "warn",
+      title: "3. Vật liệu dây đồng & Rửa sạch trợ hàn axit",
+      items: [
+        "Khuyến nghị dùng dây đồng đỏ cứng (hard-drawn copper) hoặc thanh đồng thau Ø1,5 mm để giữ form vuông vức, chịu lực tốt.",
+        "Đồng cứng khó uốn góc nhọn bằng tay — nên dùng kìm mũi bằng và uốn quanh cữ vuông nhỏ.",
+        "Trợ hàn đồng thường chứa axit gây oxy hóa xanh và rò điện; bắt buộc rửa sạch bằng cồn IPA / nước ấm xà phòng sau khi hàn xong khung."
+      ]
+    },
+    {
+      type: "info",
+      title: "4. Giữ thoáng vùng ăng-ten ESP32-C3 & Bảo vệ GPIO",
+      items: [
+        "Đầu trước của ESP32-C3 Super Mini (Z = 31..35,5 mm) chứa ăng-ten gốm Wi-Fi/BLE — không hàn thêm thanh đồng sát hoặc che ngang vùng này.",
+        "Nên mắc nối tiếp 1 điện trở 100–220 Ω trên dây tín hiệu GPIO5 điều khiển Buzzer để hạn dòng bảo vệ chân vi điều khiển."
+      ]
+    }
+  ]
+};
+
+/* ============================================================================
+   2. TRẠNG THÁI ỨNG DỤNG & HELPER TÍNH TOÁN TỪ CONFIG
+   ============================================================================ */
+const STATE = {
+  rodDiameter: CONFIG.frame.rodDiameter,
+  frameOpacity: 1.0,
+  explode: 0.0,
+  explodedTarget: 0,
+  splayedLegs: false,
+  autoRotate: false,
+  isOrtho: false,
+  measureMode: false,
+  measurePoints: [],
+  selectedObject: null,
+  layers: {
+    frameMain: true,
+    y0: true,
+    y10: true,
+    y20: true,
+    y32: true,
+    legs: true,
+    diag: true,
+    solder: true,
+    sleeve: true,
+    oled: true,
+    buzzer: true,
+    battery: true,
+    tp4056: true,
+    esp32: true,
+    touch: true,
+    wire_oled_esp: true,
+    wire_touch_esp: true,
+    wire_buzzer_esp: true,
+    wire_bat_tp: true,
+    wire_tp_esp: true,
+    grid: true,
+    labels: true,
+    dims: false
+  }
+};
+
+function fmtNum(n) {
+  return Number(n.toFixed(2)).toString().replace(".", ",");
+}
+
+// Tính danh sách cắt thanh động từ CONFIG và đường kính ống hiện tại
+function computeCutList() {
+  const f = CONFIG.frame;
+  const d = STATE.rodDiameter;
+  const loopLen = 2 * (f.width + f.height) + f.loopOverlap;
+  const depthLen = +(f.depth - d).toFixed(2);
+  const widthLen = +(f.width - d).toFixed(2);
+  const legLen = f.legOverlap + f.legStraight + f.legFoot;
+  const diagLen = +Math.hypot(f.height, f.depth).toFixed(1);
+
+  const rows = [
+    { name: "Vòng trước (Z = 0)", qty: 1, cut: loopLen, note: `Uốn 3 góc 90° thành hình vuông ${f.width}×${f.height} mm, chồng ${f.loopOverlap/2} mm mỗi bên ở cạnh trên` },
+    { name: "Vòng sau (Z = 53)", qty: 1, cut: loopLen, note: `Giống vòng trước, mặt sau để hở cho cổng USB` },
+    { name: "Thanh dọc chiều sâu (4 góc khung)", qty: 4, cut: depthLen, note: `Nối vòng trước và vòng sau tại (0,0), (32,0), (0,32), (32,32)` },
+    { name: "Ray dọc tầng Y = 10", qty: 2, cut: depthLen, note: `Hàn dọc theo 2 mặt bên X = 0 và X = 32 ở độ cao Y = 10` },
+    { name: "Thanh ngang tầng Y = 10 (đỡ TP4056)", qty: 2, cut: widthLen, note: `Hàn ngang tại Z = 30 và Z = 50, bọc ống co nhiệt vàng` },
+    { name: "Ray dọc tầng Y = 20", qty: 2, cut: depthLen, note: `Hàn dọc theo 2 mặt bên X = 0 và X = 32 ở độ cao Y = 20` },
+    { name: "Thanh ngang tầng Y = 20 (đỡ ESP32)", qty: 2, cut: widthLen, note: `Hàn ngang tại Z = 39 và Z = 50, bọc ống co nhiệt vàng` },
+    { name: "Thanh ngang đáy Y = 0 (đỡ Buzzer & Pin)", qty: 4, cut: widthLen, note: `Z = 9, 17 (đỡ Buzzer) và Z = 26, 46 (đỡ Pin, bọc cách điện)` },
+    { name: "Thanh ngang mặt trên Y = 32 (đỡ TTP223)", qty: 2, cut: widthLen, note: `Z = 22,5 và Z = 30,5, bọc ống co nhiệt vàng` },
+    { name: "Chân đế (4 góc dưới)", qty: 4, cut: legLen, note: `${f.legOverlap} mm chồng hàn vào cột đứng + ${f.legStraight} mm thẳng + ${f.legFoot} mm đế gập ngang` }
+  ];
+  const baseTotal = rows.reduce((s, r) => s + r.qty * r.cut, 0);
+  return { rows, baseTotal, diagLen, totalWithDiag: +(baseTotal + diagLen).toFixed(1) };
+}
+
+/* ============================================================================
+   3. BIẾN TOÀN CỤC THREE.JS & NHÓM ĐỐI TƯỢNG
+   ============================================================================ */
+let scene, perspCamera, orthoCamera, activeCamera, renderer;
+let frameGroup, partsGroup, wiresGroup, dimGroup, gridGroup, measureGroup;
+let tierGroups = {}; // Để tách tầng theo trục Y
+let partAnchors = []; // Dùng cho nhãn 3D nổi
+let dimAnchors = [];  // Dùng cho nhãn kích thước 3D
+let snapPoints = [];  // Các điểm bắt dính khi dùng chế độ Đo 2 điểm
+let inspectableMeshes = [];
+let copperMaterials = [];
+let frameGroupsByLayer = { frameMain: [], y0: [], y10: [], y20: [], y32: [], legs: [], diag: [], solder: [], sleeve: [] };
+let stepHighlightGroups = {};
+let partGroupsById = {};
+let wireGroupsById = {};
+let hoveredObj = null;
+let selectedHighlightBox = null;
+
+// Trạng thái điều khiển Orbit tự viết
+const orbit = {
+  target: new THREE.Vector3(16, 13.5, 26.5),
+  radius: 108,
+  theta: 0.62,       // Góc ngang (rad)
+  phi: 1.12,         // Góc từ trục +Y xuống (rad)
+  targetRadius: 108,
+  targetTheta: 0.62,
+  targetPhi: 1.12,
+  targetPan: new THREE.Vector3(16, 13.5, 26.5),
+  isDragging: false,
+  dragMode: "rotate",
+  lastX: 0,
+  lastY: 0,
+  pinchDist: 0
+};
+
+/* ============================================================================
+   4. KHỞI TẠO CẢNH 3D, ÁNH SÁNG VÀ MÔI TRƯỜNG KIM LOẠI ĐỒNG
+   ============================================================================ */
+function initThree() {
+  if (typeof THREE === "undefined") {
+    document.getElementById("webgl-fallback").classList.add("visible");
+    return false;
+  }
+  const wrap = document.getElementById("viewport-wrap");
+  const canvas = document.getElementById("canvas3d");
+
+  scene = new THREE.Scene();
+
+  const w = wrap.clientWidth || window.innerWidth;
+  const h = wrap.clientHeight || (window.innerHeight - 48);
+  const aspect = w / h;
+
+  perspCamera = new THREE.PerspectiveCamera(40, aspect, 0.5, 1000);
+  const frustum = 56;
+  orthoCamera = new THREE.OrthographicCamera(-frustum * aspect, frustum * aspect, frustum, -frustum, -500, 1000);
+  activeCamera = perspCamera;
+
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(w, h);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+
+  // Tạo envMap từ canvas gradient để bề mặt đồng có ánh kim ấm, không bị tối đen
+  const envCanvas = document.createElement("canvas");
+  envCanvas.width = 256;
+  envCanvas.height = 128;
+  const ctx = envCanvas.getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 0, 128);
+  grad.addColorStop(0.0, "#fff8eb");
+  grad.addColorStop(0.28, "#ffdcb8");
+  grad.addColorStop(0.50, "#b87a44");
+  grad.addColorStop(0.55, "#473324");
+  grad.addColorStop(0.85, "#8c6d53");
+  grad.addColorStop(1.0, "#d9c2ad");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 128);
+  // Thêm các vệt phản chiếu studio sáng
+  ctx.fillStyle = "rgba(255,255,255,0.65)";
+  ctx.fillRect(28, 12, 42, 24);
+  ctx.fillRect(145, 18, 56, 20);
+  ctx.fillRect(92, 74, 64, 14);
+
+  const envTex = new THREE.CanvasTexture(envCanvas);
+  envTex.mapping = THREE.EquirectangularReflectionMapping;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromEquirectangular(envTex).texture;
+  envTex.dispose();
+  pmrem.dispose();
+
+  // Hệ thống đèn chiếu sáng
+  const hemi = new THREE.HemisphereLight(0xfff5e8, 0x3b4859, 0.85);
+  hemi.position.set(16, 80, 26);
+  scene.add(hemi);
+
+  const dir1 = new THREE.DirectionalLight(0xffffff, 1.05);
+  dir1.position.set(55, 75, 45);
+  scene.add(dir1);
+
+  const dir2 = new THREE.DirectionalLight(0xdbeafe, 0.55);
+  dir2.position.set(-45, 35, -30);
+  scene.add(dir2);
+
+  // Các nhóm gốc trong scene
+  gridGroup = new THREE.Group();
+  frameGroup = new THREE.Group();
+  partsGroup = new THREE.Group();
+  wiresGroup = new THREE.Group();
+  dimGroup = new THREE.Group();
+  measureGroup = new THREE.Group();
+
+  scene.add(gridGroup, frameGroup, partsGroup, wiresGroup, dimGroup, measureGroup);
+
+  buildGridAndShadow();
+  buildFrame();
+  buildParts();
+  buildWires();
+  buildDimensions();
+  syncLayerVisibility();
+  updateCameraPosition(true);
+  bindOrbitControls(wrap);
+  window.addEventListener("resize", onWindowResize);
+  return true;
+}
+
+function rebuildAll3D() {
+  clearSelection();
+  inspectableMeshes = [];
+  snapPoints = [];
+  buildGridAndShadow();
+  buildFrame();
+  buildParts();
+  buildWires();
+  buildDimensions();
+  syncLayerVisibility();
+}
+
+function buildGridAndShadow() {
+  disposeGroup(gridGroup);
+  const yFloor = -CONFIG.frame.legStraight - STATE.rodDiameter * 0.5;
+  const grid = new THREE.GridHelper(140, 28, 0x8a99ad, 0xcbd5e1);
+  grid.position.set(16, yFloor, 26.5);
+  grid.material.transparent = true;
+  grid.material.opacity = 0.36;
+  gridGroup.add(grid);
+
+  // Bóng đổ mềm phía dưới chân bằng canvas gradient
+  const sc = document.createElement("canvas");
+  sc.width = 128; sc.height = 128;
+  const sctx = sc.getContext("2d");
+  const rg = sctx.createRadialGradient(64, 64, 8, 64, 64, 62);
+  rg.addColorStop(0, "rgba(15,23,42,0.24)");
+  rg.addColorStop(0.65, "rgba(15,23,42,0.08)");
+  rg.addColorStop(1, "rgba(15,23,42,0)");
+  sctx.fillStyle = rg;
+  sctx.fillRect(0, 0, 128, 128);
+  const stex = new THREE.CanvasTexture(sc);
+  const shadowPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(66, 86),
+    new THREE.MeshBasicMaterial({ map: stex, transparent: true, depthWrite: false })
+  );
+  shadowPlane.rotation.x = -Math.PI / 2;
+  shadowPlane.position.set(16, yFloor + 0.03, 26.5);
+  gridGroup.add(shadowPlane);
+}
+
+// Giải phóng bộ nhớ geometry/material/texture khi dựng lại mô hình
+function disposeGroup(group) {
+  if (!group) return;
+  group.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((m) => {
+        if (m.map) m.map.dispose();
+        m.dispose();
+      });
+    }
+  });
+  while (group.children.length > 0) {
+    group.remove(group.children[0]);
+  }
+}
+
+/* ============================================================================
+   5. DỰNG KHUNG ĐỒNG, MỐI HÀN VÀ ỐNG CO NHIỆT CÁCH ĐIỆN — buildFrame()
+   ============================================================================ */
+function buildFrame() {
+  disposeGroup(frameGroup);
+  copperMaterials = [];
+  frameGroupsByLayer = { frameMain: [], y0: [], y10: [], y20: [], y32: [], legs: [], diag: [], solder: [], sleeve: [] };
+
+  // Khởi tạo sub-group cho từng tầng để hỗ trợ tính năng Tách tầng theo trục Y
+  tierGroups.frameMain = new THREE.Group();
+  tierGroups.y0 = new THREE.Group();
+  tierGroups.y10 = new THREE.Group();
+  tierGroups.y20 = new THREE.Group();
+  tierGroups.y32 = new THREE.Group();
+  frameGroup.add(tierGroups.frameMain, tierGroups.y0, tierGroups.y10, tierGroups.y20, tierGroups.y32);
+
+  const f = CONFIG.frame;
+  const W = f.width, H = f.height, D = f.depth;
+  const d = STATE.rodDiameter;
+  const r = d / 2;
+
+  function makeCopperMat() {
+    const m = new THREE.MeshStandardMaterial({
+      color: CONFIG.colors.copper,
+      metalness: 0.9,
+      roughness: 0.28,
+      transparent: STATE.frameOpacity < 1,
+      opacity: STATE.frameOpacity
+    });
+    copperMaterials.push(m);
+    return m;
+  }
+
+  const solderMat = new THREE.MeshStandardMaterial({
+    color: CONFIG.colors.solder,
+    metalness: 0.85,
+    roughness: 0.25
+  });
+
+  const sleeveMat = new THREE.MeshStandardMaterial({
+    color: CONFIG.colors.heatshrink,
+    roughness: 0.45,
+    metalness: 0.05,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false
+  });
+
+  // Hàm tạo 1 đoạn ống đồng hình trụ giữa p1 và p2
+  function addRod(p1, p2, parentGroup, layerKey, meta, trimEnds = 0) {
+    const v1 = new THREE.Vector3(...p1);
+    const v2 = new THREE.Vector3(...p2);
+    const dir = new THREE.Vector3().subVectors(v2, v1);
+    const fullLen = dir.length();
+    const len = Math.max(0.5, fullLen - trimEnds * 2);
+    const geom = new THREE.CylinderGeometry(r, r, len, 18);
+    const mesh = new THREE.Mesh(geom, makeCopperMat());
+    const mid = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
+    mesh.position.copy(mid);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    mesh.userData = { inspectable: true, meta };
+    parentGroup.add(mesh);
+    frameGroupsByLayer[layerKey].push(mesh);
+    inspectableMeshes.push(mesh);
+    snapPoints.push(v1.clone(), v2.clone(), mid.clone());
+    return mesh;
+  }
+
+  // Hàm tạo mối hàn bạc tại giao điểm
+  function addSolder(pt, parentGroup, isLeg = false) {
+    const sGeom = new THREE.SphereGeometry(r * 1.12, 12, 10);
+    const sMesh = new THREE.Mesh(sGeom, solderMat);
+    sMesh.position.set(...pt);
+    parentGroup.add(sMesh);
+    frameGroupsByLayer.solder.push(sMesh);
+    if (isLeg) frameGroupsByLayer.legs.push(sMesh);
+  }
+
+  // Hàm bọc ống co nhiệt vàng mờ trên thanh ngang đỡ mạch/pin
+  function addSleeve(x1, x2, y, z, parentGroup) {
+    const sleeveR = (d + f.sleeveClearance) / 2;
+    const len = Math.abs(x2 - x1) - d * 1.4;
+    const geom = new THREE.CylinderGeometry(sleeveR, sleeveR, len, 16);
+    const mesh = new THREE.Mesh(geom, sleeveMat);
+    mesh.position.set((x1 + x2) / 2, y, z);
+    mesh.rotation.z = Math.PI / 2;
+    parentGroup.add(mesh);
+    frameGroupsByLayer.sleeve.push(mesh);
+  }
+
+  // 1 & 2. VÒNG TRƯỚC (Z = 0) và VÒNG SAU (Z = 53)
+  [0, D].forEach((zPos, idx) => {
+    const label = idx === 0 ? "Vòng trước (Z = 0)" : "Vòng sau (Z = 53)";
+    const loopMeta = {
+      name: label,
+      dims: `${W} × ${H} mm (Cắt ${2*(W+H)+f.loopOverlap} mm)`,
+      pos: `Mặt phẳng Z = ${zPos} mm`,
+      mount: "Uốn liền 1 thanh đồng qua 3 góc 90°, chồng mép 3 mm mỗi bên ở cạnh trên.",
+      note: idx === 0 ? "Mặt trước treo màn hình OLED 0,96\"." : "Mặt sau để hở cho cổng Micro-USB và USB-C."
+    };
+    addRod([0, 0, zPos], [W, 0, zPos], tierGroups.frameMain, "frameMain", loopMeta, 0);
+    addRod([W, 0, zPos], [W, H, zPos], tierGroups.frameMain, "frameMain", loopMeta, 0);
+    addRod([W, H, zPos], [0, H, zPos], tierGroups.frameMain, "frameMain", loopMeta, 0);
+    addRod([0, H, zPos], [0, 0, zPos], tierGroups.frameMain, "frameMain", loopMeta, 0);
+    // Mối hàn chồng ở giữa cạnh trên vòng
+    addSolder([W / 2, H, zPos], tierGroups.frameMain);
+  });
+
+  // 3. 4 THANH DỌC CHIỀU SÂU TẠI 4 GÓC
+  const corners = [[0, 0], [W, 0], [0, H], [W, H]];
+  corners.forEach(([x, y]) => {
+    addRod([x, y, 0], [x, y, D], tierGroups.frameMain, "frameMain", {
+      name: `Thanh dọc góc (${x}, ${y})`,
+      dims: `Ø${fmtNum(d)} × dài cắt ${fmtNum(D - d)} mm`,
+      pos: `X = ${x}, Y = ${y}, Z: 0 → ${D} mm`,
+      mount: "Hàn đối đầu vào góc vòng trước và vòng sau.",
+      note: "Chịu lực chính theo chiều sâu hộp."
+    }, r);
+    addSolder([x, y, 0], tierGroups.frameMain);
+    addSolder([x, y, D], tierGroups.frameMain);
+  });
+
+  // 4 & 5. RAY DỌC TẦNG Y = 10 VÀ Y = 20
+  [10, 20].forEach((yTier) => {
+    const key = `y${yTier}`;
+    const grp = tierGroups[key];
+    [0, W].forEach((xSide) => {
+      addRod([xSide, yTier, 0], [xSide, yTier, D], grp, key, {
+        name: `Ray dọc tầng Y = ${yTier} (X = ${xSide})`,
+        dims: `Ø${fmtNum(d)} × dài cắt ${fmtNum(D - d)} mm`,
+        pos: `X = ${xSide}, Y = ${yTier}, Z: 0 → ${D} mm`,
+        mount: "Hàn vào thanh đứng của vòng trước và vòng sau.",
+        note: `Đỡ các thanh ngang của tầng Y = ${yTier}.`
+      }, r);
+      addSolder([xSide, yTier, 0], grp);
+      addSolder([xSide, yTier, D], grp);
+    });
+  });
+
+  // 4, 5, 6, 7. CÁC THANH NGANG ĐỠ LINH KIỆN TẠI Y = 0, 10, 20, 32
+  Object.entries(CONFIG.crossbars).forEach(([key, list]) => {
+    const yVal = Number(key.replace("y", ""));
+    const grp = tierGroups[key];
+    list.forEach((bar) => {
+      addRod([0, yVal, bar.z], [W, yVal, bar.z], grp, key, {
+        name: `Thanh ngang tầng Y = ${yVal} (Z = ${fmtNum(bar.z)})`,
+        dims: `Ø${fmtNum(d)} × dài cắt ${fmtNum(W - d)} mm`,
+        pos: `X: 0 → ${W}, Y = ${yVal}, Z = ${fmtNum(bar.z)} mm`,
+        mount: bar.role,
+        note: bar.insulate ? "BẮT BUỘC bọc ống co nhiệt cách điện Ø2,2 mm." : "Đỡ vỏ nhựa Buzzer."
+      }, r);
+      addSolder([0, yVal, bar.z], grp);
+      addSolder([W, yVal, bar.z], grp);
+      if (bar.insulate) {
+        addSleeve(0, W, yVal, bar.z, grp);
+      }
+    });
+  });
+
+  // 8. 4 CHÂN ĐẾ (Y = 0 xuống Y = -10, gập 4 mm ra ngoài, có tùy chọn chân xòe ~20°)
+  const baseCorners = [
+    { x: 0, z: 0, sx: -1, sz: -1 },
+    { x: W, z: 0, sx: 1,  sz: -1 },
+    { x: 0, z: D, sx: -1, sz: 1 },
+    { x: W, z: D, sx: 1,  sz: 1 }
+  ];
+  const splayRad = STATE.splayedLegs ? (f.legSplayDeg * Math.PI / 180) : 0;
+  baseCorners.forEach((c) => {
+    const legMeta = {
+      name: `Chân đế góc (${c.x}, 0, ${c.z})`,
+      dims: `Cắt ${f.legOverlap + f.legStraight + f.legFoot} mm (3 chồng + 10 đứng + 4 đế)`,
+      pos: `Góc đáy X = ${c.x}, Z = ${c.z}, Y: 0 → -${f.legStraight} mm`,
+      mount: "Chồng 3 mm lên thanh đứng góc khung và hàn kín.",
+      note: STATE.splayedLegs ? "Đang bật kiểu chân xòe ~20° tăng độ vững." : "Kiểu chân thẳng đứng tiêu chuẩn."
+    };
+    // Đoạn chồng 3 mm lên thanh đứng
+    addRod([c.x, 0, c.z], [c.x, f.legOverlap, c.z], tierGroups.y0, "legs", legMeta, 0);
+    addSolder([c.x, f.legOverlap, c.z], tierGroups.y0, true);
+
+    // Hướng xòe ra ngoài trong mặt phẳng XZ (chéo 45 độ ra ngoài khung)
+    const invSqrt2 = 1 / Math.SQRT2;
+    const outX = c.sx * invSqrt2;
+    const outZ = c.sz * invSqrt2;
+
+    const dropY = -f.legStraight * Math.cos(splayRad);
+    const outShift = f.legStraight * Math.sin(splayRad);
+    const ankle = [c.x + outX * outShift, dropY, c.z + outZ * outShift];
+    const toe = [ankle[0] + outX * f.legFoot, dropY, ankle[2] + outZ * f.legFoot];
+
+    addRod([c.x, 0, c.z], ankle, tierGroups.y0, "legs", legMeta, 0);
+    addRod(ankle, toe, tierGroups.y0, "legs", legMeta, 0);
+  });
+
+  stepHighlightGroups = {
+    loops: tierGroups.frameMain,
+    frameMain: tierGroups.frameMain,
+    crossbars: tierGroups.y10,
+    legs: tierGroups.y0,
+    sleeve: tierGroups.y20,
+    wires: wiresGroup,
+    all: frameGroup
+  };
+
+  // 9. THANH CHỐNG CHÉO TRÊN MẶT X = 32: TỪ (32, 0, 0) LÊN (32, 32, 53)
+  const diagLen = Math.hypot(H, D);
+  addRod([W, 0, 0], [W, H, D], tierGroups.frameMain, "diag", {
+    name: "Thanh chống chéo mặt phải (X = 32)",
+    dims: `Ø${fmtNum(d)} × dài cắt ~${Math.round(diagLen)} mm (vát 2 đầu)`,
+    pos: `Từ (32, 0, 0) lên (32, 32, 53) mm`,
+    mount: "Vát chéo 2 đầu và hàn vào góc dưới-trước và trên-sau bên phải.",
+    note: "Tăng độ cứng chống xô lệch hình bình hành cho khung."
+  }, r * 1.1);
+}
+
+/* ============================================================================
+   6. DỰNG 6 LINH KIỆN ĐIỆN TỬ CHI TIẾT — buildParts()
+   ============================================================================ */
+function makeTextTexture(width, height, drawFn) {
+  const c = document.createElement("canvas");
+  c.width = width;
+  c.height = height;
+  const ctx = c.getContext("2d");
+  drawFn(ctx, width, height);
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 4;
+  return tex;
+}
+
+function buildParts() {
+  disposeGroup(partsGroup);
+  partGroupsById = {};
+  partAnchors = [];
+
+  const C = CONFIG.components;
+
+  function registerPart(id, group, anchorLocal, parentTierGroup) {
+    partGroupsById[id] = group;
+    parentTierGroup.add(group);
+    const info = C[id];
+    group.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.userData = { inspectable: true, meta: info, partId: id };
+        inspectableMeshes.push(obj);
+      }
+    });
+    partAnchors.push({
+      id,
+      label: info.shortName,
+      group,
+      localPos: anchorLocal
+    });
+  }
+
+  // ---------------- a. OLED 0,96" 128x64 ----------------
+  {
+    const info = C.oled;
+    const g = new THREE.Group();
+    const cx = info.center.x, cy = info.center.y;
+    const zFront = info.frontZ; // 1.5
+
+    // Kính đen phía trước (Z từ 1.5 đến 2.9)
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x0A0A0A, roughness: 0.15, metalness: 0.1 });
+    const glassMesh = new THREE.Mesh(new THREE.BoxGeometry(info.glass.w, info.glass.h, info.glass.d), glassMat);
+    glassMesh.position.set(cx, cy + 1.4, zFront + info.glass.d / 2);
+    g.add(glassMesh);
+
+    // Vùng hiển thị 21.7 x 10.9 với mặt cười pixel "^_^"
+    const oledTex = makeTextTexture(256, 128, (ctx, w, h) => {
+      ctx.fillStyle = "#06101c";
+      ctx.fillRect(0, 0, w, h);
+      // Viền điểm ảnh nhẹ
+      ctx.strokeStyle = "#16324f";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(3, 3, w - 6, h - 6);
+      // Mắt cười pixel "^_^"
+      ctx.fillStyle = "#e0f7ff";
+      const px = 6;
+      const drawPix = (gx, gy) => ctx.fillRect(gx * px, gy * px, px - 1, px - 1);
+      // Mắt trái ^
+      [[7,9],[8,8],[9,7],[10,6],[11,7],[12,8],[13,9]].forEach(([x,y]) => { drawPix(x,y); drawPix(x,y+1); });
+      // Mắt phải ^
+      [[28,9],[29,8],[30,7],[31,6],[32,7],[33,8],[34,9]].forEach(([x,y]) => { drawPix(x,y); drawPix(x,y+1); });
+      // Miệng _
+      for (let x = 18; x <= 23; x++) drawPix(x, 13);
+      // Má hồng pixel xanh cyan nhạt
+      ctx.fillStyle = "#38bdf8";
+      drawPix(8, 12); drawPix(9, 12);
+      drawPix(32, 12); drawPix(33, 12);
+    });
+    const screenMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(info.active.w, info.active.h),
+      new THREE.MeshBasicMaterial({ map: oledTex })
+    );
+    screenMesh.position.set(cx, cy + 2.0, zFront - 0.02);
+    screenMesh.rotation.y = Math.PI; // Hướng về -Z (mặt trước)
+    g.add(screenMesh);
+
+    // PCB xanh dương (#1F5FA8) phía sau kính (Z từ 2.9 đến 4.1)
+    const pcbZ = zFront + info.glass.d + info.pcb.d / 2;
+    const pcbMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(info.pcb.w, info.pcb.h, info.pcb.d),
+      new THREE.MeshStandardMaterial({ color: 0x1F5FA8, roughness: 0.45, metalness: 0.15 })
+    );
+    pcbMesh.position.set(cx, cy, pcbZ);
+    g.add(pcbMesh);
+
+    // 4 lỗ góc + 4 sợi chỉ treo mảnh tới vòng trước
+    const hx = info.pcb.w / 2 - 2.1;
+    const hy = info.pcb.h / 2 - 2.1;
+    const holeMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8, roughness: 0.3 });
+    const threadMat = new THREE.LineBasicMaterial({ color: CONFIG.colors.thread, transparent: true, opacity: 0.85 });
+    [[-1, -1, 0, 0], [1, -1, 32, 0], [-1, 1, 0, 32], [1, 1, 32, 32]].forEach(([sx, sy, fx, fy]) => {
+      const px = cx + sx * hx;
+      const py = cy + sy * hy;
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, info.pcb.d + 0.1, 12), holeMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.set(px, py, pcbZ);
+      g.add(ring);
+
+      const lineGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(px, py, zFront + 0.6),
+        new THREE.Vector3(fx, fy, 0)
+      ]);
+      g.add(new THREE.Line(lineGeom, threadMat));
+    });
+
+    // 4 pad hàn phía sau
+    [-3.6, -1.2, 1.2, 3.6].forEach((dx) => {
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.2, 1.3), holeMat);
+      pad.position.set(cx + dx, cy + info.pcb.h / 2 - 2.2, pcbZ + info.pcb.d / 2 + 0.65);
+      g.add(pad);
+    });
+
+    registerPart("oled", g, new THREE.Vector3(cx, cy + 12, zFront + 1.5), tierGroups.frameMain);
+    snapPoints.push(new THREE.Vector3(cx, cy, zFront));
+  }
+
+  // ---------------- b. BUZZER Ø12 x 9 ----------------
+  {
+    const info = C.buzzer;
+    const g = new THREE.Group();
+    const rBuz = info.diameter / 2;
+    const cy = info.bottomY + info.height / 2;
+
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(rBuz, rBuz, info.height, 24),
+      new THREE.MeshStandardMaterial({ color: 0x1c1e24, roughness: 0.4, metalness: 0.1 })
+    );
+    body.position.set(info.center.x, cy, info.center.z);
+    g.add(body);
+
+    // Lỗ phát âm trên mặt trên
+    const hole = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.3, 1.3, 0.3, 16),
+      new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.3 })
+    );
+    hole.position.set(info.center.x, info.bottomY + info.height + 0.05, info.center.z);
+    g.add(hole);
+
+    registerPart("buzzer", g, new THREE.Vector3(info.center.x, info.bottomY + info.height, info.center.z), tierGroups.y0);
+    snapPoints.push(new THREE.Vector3(info.center.x, info.bottomY + info.height, info.center.z));
+  }
+
+  // ---------------- c. PIN LiPo 3,7V ----------------
+  {
+    const info = C.battery;
+    const g = new THREE.Group();
+    const cx = (info.range.x[0] + info.range.x[1]) / 2;
+    const cy = (info.range.y[0] + info.range.y[1]) / 2;
+    const cz = (info.range.z[0] + info.range.z[1]) / 2;
+
+    const batTex = makeTextTexture(256, 256, (ctx, w, h) => {
+      ctx.fillStyle = "#4A78B5";
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = "#93c5fd";
+      ctx.lineWidth = 6;
+      ctx.strokeRect(10, 10, w - 20, h - 20);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 46px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("3,7V", w / 2, h / 2 - 6);
+      ctx.font = "bold 24px sans-serif";
+      ctx.fillStyle = "#dbeafe";
+      ctx.fillText("LiPo 350mAh", w / 2, h / 2 + 34);
+    });
+
+    const cell = new THREE.Mesh(
+      new THREE.BoxGeometry(info.size.w, info.size.h, info.size.d),
+      new THREE.MeshStandardMaterial({ map: batTex, roughness: 0.35, metalness: 0.45 })
+    );
+    cell.position.set(cx, cy, cz);
+    g.add(cell);
+
+    // Băng bảo vệ Kapton vàng ở đầu cực pin (Z = 21)
+    const kapton = new THREE.Mesh(
+      new THREE.BoxGeometry(info.size.w + 0.2, info.size.h + 0.2, 3.2),
+      new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3, transparent: true, opacity: 0.85 })
+    );
+    kapton.position.set(cx, cy, info.range.z[0] + 1.6);
+    g.add(kapton);
+
+    registerPart("battery", g, new THREE.Vector3(cx, info.range.y[1], cz), tierGroups.y0);
+    snapPoints.push(new THREE.Vector3(info.range.x[0], info.range.y[1], info.range.z[0]), new THREE.Vector3(info.range.x[1], info.range.y[1], info.range.z[1]));
+  }
+
+  // ---------------- d. MẠCH SẠC TP4056 (có bảo vệ) ----------------
+  {
+    const info = C.tp4056;
+    const g = new THREE.Group();
+    const cx = (info.range.x[0] + info.range.x[1]) / 2;
+    const cz = (info.range.z[0] + info.range.z[1]) / 2;
+    const pcbY = info.range.y[0] + info.size.h / 2;
+
+    // PCB xanh dương đậm
+    const pcb = new THREE.Mesh(
+      new THREE.BoxGeometry(info.size.w, info.size.h, info.size.d),
+      new THREE.MeshStandardMaterial({ color: 0x1D4ED8, roughness: 0.45, metalness: 0.15 })
+    );
+    pcb.position.set(cx, pcbY, cz);
+    g.add(pcb);
+
+    const topPCB = info.range.y[0] + info.size.h;
+    // Cổng Micro-USB bạc hướng ra +Z
+    const usb = new THREE.Mesh(
+      new THREE.BoxGeometry(info.usb.w, info.usb.h, info.usb.d),
+      new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.88, roughness: 0.25 })
+    );
+    usb.position.set(cx, topPCB + info.usb.h / 2, info.range.z[1] - info.usb.d / 2 + 0.7);
+    g.add(usb);
+
+    // IC TP4056 + 2 IC bảo vệ (DW01A, 8205A)
+    const icMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.4 });
+    const icMain = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.1, 5.2), icMat);
+    icMain.position.set(cx, topPCB + 0.55, cz + 1.5);
+    g.add(icMain);
+
+    const icProt1 = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.9, 2.8), icMat);
+    icProt1.position.set(cx - 3.2, topPCB + 0.45, cz - 5.5);
+    g.add(icProt1);
+
+    const icProt2 = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.9, 3.0), icMat);
+    icProt2.position.set(cx + 3.2, topPCB + 0.45, cz - 5.5);
+    g.add(icProt2);
+
+    // 2 LED trạng thái (đỏ & xanh)
+    const ledRed = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.7, 1.0), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+    ledRed.position.set(cx - 4.5, topPCB + 0.35, cz + 7.5);
+    const ledBlue = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.7, 1.0), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+    ledBlue.position.set(cx + 4.5, topPCB + 0.35, cz + 7.5);
+    g.add(ledRed, ledBlue);
+
+    registerPart("tp4056", g, new THREE.Vector3(cx, topPCB + 2.5, cz), tierGroups.y10);
+    snapPoints.push(new THREE.Vector3(cx, topPCB, info.range.z[0]), new THREE.Vector3(cx, topPCB, info.range.z[1]));
+  }
+
+  // ---------------- e. ESP32-C3 SUPER MINI ----------------
+  {
+    const info = C.esp32;
+    const g = new THREE.Group();
+    const cx = (info.range.x[0] + info.range.x[1]) / 2;
+    const cz = (info.range.z[0] + info.range.z[1]) / 2;
+    const pcbY = info.range.y[0] + info.size.h / 2;
+
+    // PCB đen mờ (#141414)
+    const pcb = new THREE.Mesh(
+      new THREE.BoxGeometry(info.size.w, info.size.h, info.size.d),
+      new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.5, metalness: 0.1 })
+    );
+    pcb.position.set(cx, pcbY, cz);
+    g.add(pcb);
+
+    const topPCB = info.range.y[0] + info.size.h;
+    // Cổng USB-C bạc hướng ra +Z
+    const usbc = new THREE.Mesh(
+      new THREE.BoxGeometry(info.usb.w, info.usb.h, info.usb.d),
+      new THREE.MeshStandardMaterial({ color: 0xd4d8de, metalness: 0.9, roughness: 0.22 })
+    );
+    usbc.position.set(cx, topPCB + info.usb.h / 2, info.range.z[1] - info.usb.d / 2 + 0.6);
+    g.add(usbc);
+
+    // Vỏ chip kim loại 5x5 ở giữa
+    const shield = new THREE.Mesh(
+      new THREE.BoxGeometry(5.2, 1.1, 5.2),
+      new THREE.MeshStandardMaterial({ color: 0xa1a1aa, metalness: 0.85, roughness: 0.28 })
+    );
+    shield.position.set(cx, topPCB + 0.55, cz + 0.5);
+    g.add(shield);
+
+    // 2 nút nhỏ BOOT và RST gần USB-C
+    const btnMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, metalness: 0.6, roughness: 0.3 });
+    [-4.8, 4.8].forEach((dx) => {
+      const btn = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.0, 2.8), btnMat);
+      btn.position.set(cx + dx, topPCB + 0.5, info.range.z[1] - 4.8);
+      g.add(btn);
+    });
+
+    // Hàng pad vàng dọc 2 cạnh dài
+    const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.88, roughness: 0.25 });
+    for (let i = 0; i < 8; i++) {
+      const pz = info.range.z[0] + 4.8 + i * 2.3;
+      [-info.size.w / 2 + 0.4, info.size.w / 2 - 0.4].forEach((dx) => {
+        const pad = new THREE.Mesh(new THREE.BoxGeometry(1.1, info.size.h + 0.16, 1.2), goldMat);
+        pad.position.set(cx + dx, pcbY, pz);
+        g.add(pad);
+      });
+    }
+
+    // Vùng ăng-ten ở đầu trước (màu cam nửa trong suốt)
+    const antLen = info.antennaZ[1] - info.antennaZ[0];
+    const antZone = new THREE.Mesh(
+      new THREE.BoxGeometry(info.size.w - 0.6, 1.5, antLen),
+      new THREE.MeshStandardMaterial({
+        color: 0xf97316,
+        transparent: true,
+        opacity: 0.62,
+        roughness: 0.3
+      })
+    );
+    antZone.position.set(cx, topPCB + 0.65, (info.antennaZ[0] + info.antennaZ[1]) / 2);
+    g.add(antZone);
+
+    registerPart("esp32", g, new THREE.Vector3(cx, topPCB + 3.2, cz), tierGroups.y20);
+    snapPoints.push(new THREE.Vector3(cx, topPCB, info.range.z[0]), new THREE.Vector3(cx, topPCB, info.range.z[1]));
+  }
+
+  // ---------------- f. CẢM BIẾN CHẠM TTP223 ----------------
+  {
+    const info = C.touch;
+    const g = new THREE.Group();
+    const cx = (info.range.x[0] + info.range.x[1]) / 2;
+    const cz = (info.range.z[0] + info.range.z[1]) / 2;
+    const pcbY = info.range.y[0] + info.size.h / 2;
+
+    // PCB đỏ (#D62828)
+    const pcb = new THREE.Mesh(
+      new THREE.BoxGeometry(info.size.w, info.size.h, info.size.d),
+      new THREE.MeshStandardMaterial({ color: 0xD62828, roughness: 0.42, metalness: 0.12 })
+    );
+    pcb.position.set(cx, pcbY, cz);
+    g.add(pcb);
+
+    // Mặt trên có vòng tròn cảm ứng trắng Ø10 kèm chữ TOUCH
+    const touchTex = makeTextTexture(256, 256, (ctx, w, h) => {
+      ctx.fillStyle = "#D62828";
+      ctx.fillRect(0, 0, w, h);
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, 112, 0, Math.PI * 2);
+      ctx.fillStyle = "#f8fafc";
+      ctx.fill();
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = "#fca5a5";
+      ctx.stroke();
+      ctx.fillStyle = "#991b1b";
+      ctx.font = "bold 44px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("TOUCH", w / 2, h / 2);
+    });
+    const padDisc = new THREE.Mesh(
+      new THREE.CylinderGeometry(info.padDiameter / 2, info.padDiameter / 2, 0.12, 24),
+      new THREE.MeshBasicMaterial({ map: touchTex })
+    );
+    padDisc.position.set(cx, info.range.y[1] + 0.04, cz);
+    g.add(padDisc);
+
+    // 1 IC nhỏ & 1 LED ở mặt dưới
+    const icBot = new THREE.Mesh(
+      new THREE.BoxGeometry(2.8, 0.8, 1.8),
+      new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.4 })
+    );
+    icBot.position.set(cx - 2.2, info.range.y[0] - 0.4, cz);
+    const ledBot = new THREE.Mesh(
+      new THREE.BoxGeometry(1.4, 0.6, 1.0),
+      new THREE.MeshBasicMaterial({ color: 0xef4444 })
+    );
+    ledBot.position.set(cx + 2.6, info.range.y[0] - 0.3, cz);
+    g.add(icBot, ledBot);
+
+    registerPart("touch", g, new THREE.Vector3(cx, info.range.y[1] + 1.2, cz), tierGroups.y32);
+    snapPoints.push(new THREE.Vector3(cx, info.range.y[1], cz));
+  }
+}
+
+/* ============================================================================
+   7. DỰNG DÂY ĐẤU NỐI MƯỢT BẰNG CatmullRomCurve3 — buildWires()
+   ============================================================================ */
+function buildWires() {
+  disposeGroup(wiresGroup);
+  wireGroupsById = {};
+
+  CONFIG.wireGroups.forEach((wg) => {
+    const grp = new THREE.Group();
+    wireGroupsById[wg.id] = grp;
+    wiresGroup.add(grp);
+
+    wg.wires.forEach((w) => {
+      const vecs = w.pts.map((p) => new THREE.Vector3(...p));
+      const curve = new THREE.CatmullRomCurve3(vecs, false, "catmullrom", 0.35);
+      const tubeGeom = new THREE.TubeGeometry(curve, 28, 0.3, 8, false);
+      const tubeMat = new THREE.MeshStandardMaterial({
+        color: w.color,
+        roughness: 0.5,
+        metalness: 0.1
+      });
+      const mesh = new THREE.Mesh(tubeGeom, tubeMat);
+      mesh.userData = {
+        inspectable: true,
+        meta: {
+          name: `Dây ${w.from} → ${w.to}`,
+          dims: `Ống dây Ø0,6 mm • Màu ${w.colorName}`,
+          pos: `Nhóm ${wg.name}`,
+          mount: "Đi cong sát bên trong khung đồng, không xuyên qua linh kiện.",
+          note: w.note
+        }
+      };
+      grp.add(mesh);
+      inspectableMeshes.push(mesh);
+
+      // Linh kiện phụ mắc nối tiếp trên dây (Điện trở 150 Ω hoặc Diode Schottky)
+      if (w.inlinePart) {
+        const idx = w.inlinePart.atIndex;
+        const pA = vecs[idx];
+        const pB = vecs[Math.min(idx + 1, vecs.length - 1)];
+        const mid = new THREE.Vector3().addVectors(pA, pB).multiplyScalar(0.5);
+        const dir = new THREE.Vector3().subVectors(pB, pA).normalize();
+
+        const isRes = w.inlinePart.type === "resistor";
+        const bodyGeom = new THREE.CylinderGeometry(0.85, 0.85, 3.4, 12);
+        const bodyMat = new THREE.MeshStandardMaterial({
+          color: isRes ? 0xd6b98c : 0x18181b,
+          roughness: 0.4
+        });
+        const compMesh = new THREE.Mesh(bodyGeom, bodyMat);
+        compMesh.position.copy(mid);
+        compMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+
+        // Vạch màu đánh dấu
+        const band = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.88, 0.88, 0.55, 12),
+          new THREE.MeshBasicMaterial({ color: isRes ? 0x15803d : 0xd1d5db })
+        );
+        band.position.y = 0.85;
+        compMesh.add(band);
+
+        compMesh.userData = {
+          inspectable: true,
+          meta: {
+            name: w.inlinePart.label,
+            dims: "Linh kiện mắc nối tiếp trên dây",
+            pos: `Trên đường ${w.from} → ${w.to}`,
+            mount: "Hàn nối tiếp giữa 2 đầu dây và bọc ống co nhiệt nhỏ.",
+            note: w.note
+          }
+        };
+        grp.add(compMesh);
+        inspectableMeshes.push(compMesh);
+      }
+    });
+  });
+}
+
+/* ============================================================================
+   8. DỰNG ĐƯỜNG KÍCH THƯỚC TRONG 3D — buildDimensions()
+   ============================================================================ */
+function buildDimensions() {
+  disposeGroup(dimGroup);
+  dimAnchors = [];
+
+  const f = CONFIG.frame;
+  const W = f.width, H = f.height, D = f.depth;
+  const d = STATE.rodDiameter;
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x0284c7, transparent: true, opacity: 0.85 });
+  const extMat = new THREE.LineBasicMaterial({ color: 0x64748b, transparent: true, opacity: 0.55 });
+  const coneMat = new THREE.MeshBasicMaterial({ color: 0x0284c7 });
+
+  function addDimLine(p1, p2, labelText, ext1 = null, ext2 = null) {
+    const v1 = new THREE.Vector3(...p1);
+    const v2 = new THREE.Vector3(...p2);
+    const geom = new THREE.BufferGeometry().setFromPoints([v1, v2]);
+    dimGroup.add(new THREE.Line(geom, lineMat));
+
+    const dir = new THREE.Vector3().subVectors(v2, v1).normalize();
+    const c1 = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.6, 8), coneMat);
+    c1.position.copy(v1).addScaledVector(dir, 0.8);
+    c1.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().negate());
+
+    const c2 = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.6, 8), coneMat);
+    c2.position.copy(v2).addScaledVector(dir, -0.8);
+    c2.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    dimGroup.add(c1, c2);
+
+    if (ext1) dimGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...ext1), v1]), extMat));
+    if (ext2) dimGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...ext2), v2]), extMat));
+
+    const mid = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
+    dimAnchors.push({ pos: mid, text: labelText });
+  }
+
+  // Rộng 32 (tâm) & Phủ bì / Lọt lòng
+  addDimLine([0, -4, -6], [W, -4, -6], `Rộng ${W} (Phủ bì ${fmtNum(W+d)} | Lọt lòng ${fmtNum(W-d)})`, [0, 0, 0], [W, 0, 0]);
+  // Cao 32 (tâm)
+  addDimLine([-6, 0, 0], [-6, H, 0], `Cao ${H} mm`, [0, 0, 0], [0, H, 0]);
+  // Sâu 53 (tâm)
+  addDimLine([W + 6, 0, 0], [W + 6, 0, D], `Sâu ${D} (Phủ bì ${fmtNum(D+d)})`, [W, 0, 0], [W, 0, D]);
+  // Chân 10 + đế 4
+  addDimLine([-5, 0, D], [-5, -f.legStraight, D], `Chân ${f.legStraight} + đế ${f.legFoot} mm`, [0, 0, D], [0, -f.legStraight, D]);
+
+  // Độ cao các tầng Y = 0, 10, 20, 32
+  CONFIG.tiersY.forEach((yv) => {
+    dimAnchors.push({ pos: new THREE.Vector3(-2.5, yv, D + 1.5), text: `Y=${yv}` });
+  });
+
+  // Vị trí Z các thanh chống ngang
+  const zNotes = [
+    { pos: [16, 0, 13], text: "Đáy Z=9; 17" },
+    { pos: [16, 0, 36], text: "Đáy Z=26; 46" },
+    { pos: [16, 10, 40], text: "Tầng 10: Z=30; 50" },
+    { pos: [16, 20, 44.5], text: "Tầng 20: Z=39; 50" },
+    { pos: [16, 32, 26.5], text: "Trên: Z=22,5; 30,5" }
+  ];
+  zNotes.forEach((zn) => dimAnchors.push({ pos: new THREE.Vector3(...zn.pos), text: zn.text }));
+}
+
+/* ============================================================================
+   9. ĐIỀU KHIỂN ORBIT TỰ VIẾT (CHUỘT + CẢM ỨNG 1 & 2 NGÓN) & CAMERA
+   ============================================================================ */
+function bindOrbitControls(el) {
+  el.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  el.addEventListener("mousedown", (e) => {
+    if (STATE.measureMode && e.button === 0) {
+      handleMeasureClick(e);
+      return;
+    }
+    orbit.isDragging = true;
+    orbit.dragMode = (e.button === 2 || e.button === 1 || e.shiftKey) ? "pan" : "rotate";
+    orbit.lastX = e.clientX;
+    orbit.lastY = e.clientY;
+    orbit.downX = e.clientX;
+    orbit.downY = e.clientY;
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!orbit.isDragging) {
+      handleHover(e);
+      return;
+    }
+    const dx = e.clientX - orbit.lastX;
+    const dy = e.clientY - orbit.lastY;
+    orbit.lastX = e.clientX;
+    orbit.lastY = e.clientY;
+
+    if (orbit.dragMode === "rotate") {
+      orbit.targetTheta -= dx * 0.0075;
+      orbit.targetPhi = Math.max(0.06, Math.min(Math.PI - 0.06, orbit.targetPhi - dy * 0.0075));
+    } else {
+      panCamera(dx, dy);
+    }
+  });
+
+  window.addEventListener("mouseup", (e) => {
+    if (orbit.isDragging) {
+      const moved = Math.hypot(e.clientX - orbit.downX, e.clientY - orbit.downY);
+      orbit.isDragging = false;
+      if (moved < 4 && !STATE.measureMode && e.button === 0) {
+        handleSelectClick(e);
+      }
+    }
+  });
+
+  el.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const factor = e.deltaY > 0 ? 1.1 : 0.91;
+    orbit.targetRadius = Math.max(28, Math.min(320, orbit.targetRadius * factor));
+  }, { passive: false });
+
+  // Hỗ trợ cảm ứng 1 ngón (xoay) & 2 ngón (zoom / di chuyển)
+  el.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) {
+      orbit.isDragging = true;
+      orbit.dragMode = "rotate";
+      orbit.lastX = e.touches[0].clientX;
+      orbit.lastY = e.touches[0].clientY;
+      orbit.downX = orbit.lastX;
+      orbit.downY = orbit.lastY;
+    } else if (e.touches.length === 2) {
+      orbit.isDragging = true;
+      orbit.dragMode = "pinch";
+      const t0 = e.touches[0], t1 = e.touches[1];
+      orbit.pinchDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+      orbit.lastX = (t0.clientX + t1.clientX) / 2;
+      orbit.lastY = (t0.clientY + t1.clientY) / 2;
+    }
+  }, { passive: false });
+
+  el.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    if (!orbit.isDragging) return;
+    if (e.touches.length === 1 && orbit.dragMode === "rotate") {
+      const dx = e.touches[0].clientX - orbit.lastX;
+      const dy = e.touches[0].clientY - orbit.lastY;
+      orbit.lastX = e.touches[0].clientX;
+      orbit.lastY = e.touches[0].clientY;
+      orbit.targetTheta -= dx * 0.0085;
+      orbit.targetPhi = Math.max(0.06, Math.min(Math.PI - 0.06, orbit.targetPhi - dy * 0.0085));
+    } else if (e.touches.length === 2) {
+      const t0 = e.touches[0], t1 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+      if (orbit.pinchDist > 0) {
+        orbit.targetRadius = Math.max(28, Math.min(320, orbit.targetRadius * (orbit.pinchDist / dist)));
+      }
+      orbit.pinchDist = dist;
+      const mx = (t0.clientX + t1.clientX) / 2;
+      const my = (t0.clientY + t1.clientY) / 2;
+      panCamera(mx - orbit.lastX, my - orbit.lastY);
+      orbit.lastX = mx;
+      orbit.lastY = my;
+    }
+  }, { passive: false });
+
+  el.addEventListener("touchend", (e) => {
+    if (orbit.isDragging && orbit.dragMode === "rotate" && e.changedTouches && e.changedTouches.length === 1) {
+      const t = e.changedTouches[0];
+      const moved = Math.hypot(t.clientX - orbit.downX, t.clientY - orbit.downY);
+      if (moved < 8) {
+        const fakeEvt = { clientX: t.clientX, clientY: t.clientY };
+        if (STATE.measureMode) handleMeasureClick(fakeEvt);
+        else handleSelectClick(fakeEvt);
+      }
+    }
+    orbit.isDragging = false;
+  });
+}
+
+function panCamera(dx, dy) {
+  const scale = orbit.radius * 0.0014;
+  const right = new THREE.Vector3();
+  const up = new THREE.Vector3();
+  activeCamera.updateMatrix();
+  right.setFromMatrixColumn(activeCamera.matrix, 0);
+  up.setFromMatrixColumn(activeCamera.matrix, 1);
+  orbit.targetPan.addScaledVector(right, -dx * scale);
+  orbit.targetPan.addScaledVector(up, dy * scale);
+}
+
+function updateCameraPosition(instant = false) {
+  const lerp = instant ? 1 : 0.16;
+  if (STATE.autoRotate && !orbit.isDragging) {
+    orbit.targetTheta += 0.006;
+  }
+  orbit.radius += (orbit.targetRadius - orbit.radius) * lerp;
+  orbit.theta += (orbit.targetTheta - orbit.theta) * lerp;
+  orbit.phi += (orbit.targetPhi - orbit.phi) * lerp;
+  orbit.target.lerp(orbit.targetPan, lerp);
+
+  const sinPhi = Math.sin(orbit.phi);
+  const x = orbit.target.x + orbit.radius * sinPhi * Math.sin(orbit.theta);
+  const y = orbit.target.y + orbit.radius * Math.cos(orbit.phi);
+  const z = orbit.target.z + orbit.radius * sinPhi * Math.cos(orbit.theta);
+
+  perspCamera.position.set(x, y, z);
+  perspCamera.lookAt(orbit.target);
+
+  orthoCamera.position.set(x, y, z);
+  orthoCamera.lookAt(orbit.target);
+  const wrap = document.getElementById("viewport-wrap");
+  const aspect = (wrap.clientWidth || 1) / (wrap.clientHeight || 1);
+  const halfH = orbit.radius * 0.42;
+  orthoCamera.left = -halfH * aspect;
+  orthoCamera.right = halfH * aspect;
+  orthoCamera.top = halfH;
+  orthoCamera.bottom = -halfH;
+  orthoCamera.updateProjectionMatrix();
+}
+
+function setPresetView(view) {
+  orbit.targetPan.set(16, 13.5, 26.5);
+  orbit.targetRadius = 104;
+  switch (view) {
+    case "front":  orbit.targetTheta = Math.PI; orbit.targetPhi = Math.PI / 2; break;
+    case "back":   orbit.targetTheta = 0; orbit.targetPhi = Math.PI / 2; break;
+    case "left":   orbit.targetTheta = -Math.PI / 2; orbit.targetPhi = Math.PI / 2; break;
+    case "right":  orbit.targetTheta = Math.PI / 2; orbit.targetPhi = Math.PI / 2; break;
+    case "top":    orbit.targetTheta = Math.PI; orbit.targetPhi = 0.08; break;
+    case "bottom": orbit.targetTheta = Math.PI; orbit.targetPhi = Math.PI - 0.08; break;
+    case "iso":
+    default:
+      // Góc nhìn chéo từ phía trước-phải-trên
+      orbit.targetTheta = Math.PI - 0.62;
+      orbit.targetPhi = 1.08;
+      orbit.targetRadius = 106;
+      break;
+  }
+}
+
+/* ============================================================================
+   10. CHỌN CHI TIẾT, HOVER & CHẾ ĐỘ ĐO 2 ĐIỂM TRONG 3D
+   ============================================================================ */
+const raycaster = new THREE.Raycaster();
+const pointerNDC = new THREE.Vector2();
+
+function getNDC(e) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointerNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+}
+
+function raycastVisible(e) {
+  getNDC(e);
+  raycaster.setFromCamera(pointerNDC, activeCamera);
+  const visibleTargets = inspectableMeshes.filter((m) => {
+    let p = m;
+    while (p) {
+      if (!p.visible) return false;
+      p = p.parent;
+    }
+    return true;
+  });
+  return raycaster.intersectObjects(visibleTargets, false);
+}
+
+function handleHover(e) {
+  if (!renderer) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+    document.getElementById("hover-tooltip").style.display = "none";
+    return;
+  }
+  const hits = raycastVisible(e);
+  const tip = document.getElementById("hover-tooltip");
+  if (hits.length > 0) {
+    const meta = hits[0].object.userData.meta;
+    const dimStr = meta.dims || (meta.size ? `${meta.size.w}×${meta.size.h}×${meta.size.d} mm` :
+                   meta.pcb ? `${meta.pcb.w}×${meta.pcb.h}×${meta.totalDepth} mm` :
+                   meta.diameter ? `Ø${meta.diameter}×${meta.height} mm` : "");
+    tip.textContent = `${meta.name} (${dimStr})`;
+    tip.style.left = `${e.clientX - rect.left}px`;
+    tip.style.top = `${e.clientY - rect.top}px`;
+    tip.style.display = "block";
+    renderer.domElement.style.cursor = STATE.measureMode ? "crosshair" : "pointer";
+  } else {
+    tip.style.display = "none";
+    renderer.domElement.style.cursor = STATE.measureMode ? "crosshair" : "grab";
+  }
+}
+
+function handleSelectClick(e) {
+  const hits = raycastVisible(e);
+  if (hits.length === 0) {
+    clearSelection();
+    return;
+  }
+  const hitObj = hits[0].object;
+  inspectMeta(hitObj.userData.meta, hitObj.userData.partId ? partGroupsById[hitObj.userData.partId] : hitObj);
+}
+
+function inspectMeta(meta, targetObj) {
+  clearSelection();
+  if (!meta) return;
+  if (targetObj) {
+    selectedHighlightBox = new THREE.BoxHelper(targetObj, 0x38bdf8);
+    scene.add(selectedHighlightBox);
+  }
+  const card = document.getElementById("inspector-card");
+  document.getElementById("insp-title").textContent = meta.name;
+
+  const dims = meta.dims || (meta.size ? `${fmtNum(meta.size.w)} × ${fmtNum(meta.size.h)} × ${fmtNum(meta.size.d)} mm` :
+               meta.pcb ? `PCB ${fmtNum(meta.pcb.w)} × ${fmtNum(meta.pcb.h)} mm (Dày ${fmtNum(meta.totalDepth)} mm)` :
+               meta.diameter ? `Ø${meta.diameter} × cao ${meta.height} mm` : "-");
+  const pos = meta.pos || (meta.range ? `X: ${fmtNum(meta.range.x[0])}..${fmtNum(meta.range.x[1])}, Y: ${fmtNum(meta.range.y[0])}..${fmtNum(meta.range.y[1])}, Z: ${fmtNum(meta.range.z[0])}..${fmtNum(meta.range.z[1])}` :
+              meta.center ? `Tâm X=${meta.center.x}, Z=${meta.center.z || meta.frontZ}` : "-");
+
+  let html = `<dt>Kích thước:</dt><dd class="mono">${dims}</dd>
+              <dt>Vị trí:</dt><dd class="mono">${pos}</dd>
+              <dt>Cố định:</dt><dd>${meta.mount || "-"}</dd>`;
+  if (meta.pins) {
+    html += `<dt>Chân nối:</dt><dd class="mono">${meta.pins}</dd>`;
+  }
+  document.getElementById("insp-grid").innerHTML = html;
+  document.getElementById("insp-note").textContent = "Lưu ý: " + (meta.note || "");
+  card.classList.add("visible");
+}
+
+function clearSelection() {
+  if (selectedHighlightBox) {
+    scene.remove(selectedHighlightBox);
+    selectedHighlightBox.geometry.dispose();
+    selectedHighlightBox.material.dispose();
+    selectedHighlightBox = null;
+  }
+  document.getElementById("inspector-card").classList.remove("visible");
+}
+
+// Chế độ đo 2 điểm có snap vào tâm thanh / góc linh kiện
+function handleMeasureClick(e) {
+  const hits = raycastVisible(e);
+  if (hits.length === 0) return;
+  const rawPt = hits[0].point.clone();
+  // Tìm điểm snap gần nhất trong bán kính 3.5 mm
+  let bestPt = rawPt;
+  let bestDist = 3.5;
+  snapPoints.forEach((sp) => {
+    const d = sp.distanceTo(rawPt);
+    if (d < bestDist) {
+      bestDist = d;
+      bestPt = sp.clone();
+    }
+  });
+
+  if (STATE.measurePoints.length >= 2) {
+    STATE.measurePoints = [];
+  }
+  STATE.measurePoints.push(bestPt);
+  renderMeasureVisuals();
+}
+
+function renderMeasureVisuals() {
+  disposeGroup(measureGroup);
+  const bannerText = document.getElementById("measure-text");
+  if (STATE.measurePoints.length === 0) {
+    bannerText.textContent = "Chế độ Đo: Bấm điểm thứ 1 trên khung hoặc linh kiện...";
+    return;
+  }
+  const dotMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+  STATE.measurePoints.forEach((p) => {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.85, 12, 10), dotMat);
+    s.position.copy(p);
+    measureGroup.add(s);
+  });
+
+  if (STATE.measurePoints.length === 1) {
+    const p = STATE.measurePoints[0];
+    bannerText.textContent = `Điểm 1: (${fmtNum(p.x)}, ${fmtNum(p.y)}, ${fmtNum(p.z)}) — Bấm điểm thứ 2...`;
+  } else {
+    const [a, b] = STATE.measurePoints;
+    const dist = a.distanceTo(b);
+    const dx = Math.abs(b.x - a.x), dy = Math.abs(b.y - a.y), dz = Math.abs(b.z - a.z);
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([a, b]),
+      new THREE.LineBasicMaterial({ color: 0x06b6d4 })
+    );
+    measureGroup.add(line);
+    bannerText.textContent = `Khoảng cách: ${fmtNum(dist)} mm (ΔX=${fmtNum(dx)}, ΔY=${fmtNum(dy)}, ΔZ=${fmtNum(dz)})`;
+  }
+}
+
+/* ============================================================================
+   11. CẬP NHẬT NHÃN NỔI 3D (CHỐNG CHỒNG CHÉO) & TÁCH TẦNG
+   ============================================================================ */
+function updateExplodeAndOverlays() {
+  // Mượt hóa tách tầng
+  if (Math.abs(STATE.explodedTarget - STATE.explode) > 0.002) {
+    STATE.explode += (STATE.explodedTarget - STATE.explode) * 0.14;
+    document.getElementById("sl-explode").value = Math.round(STATE.explode * 100);
+    document.getElementById("val-explode").textContent = `${Math.round(STATE.explode * 100)}%`;
+  }
+
+  const e = STATE.explode;
+  if (tierGroups.y0) tierGroups.y0.position.y = -e * 8;
+  if (tierGroups.y10) tierGroups.y10.position.y = e * 7;
+  if (tierGroups.y20) tierGroups.y20.position.y = e * 22;
+  if (tierGroups.y32) tierGroups.y32.position.y = e * 36;
+  if (partGroupsById.oled) partGroupsById.oled.position.z = -e * 14;
+  if (wiresGroup) wiresGroup.visible = (e < 0.05) && (
+    STATE.layers.wire_oled_esp || STATE.layers.wire_touch_esp || STATE.layers.wire_buzzer_esp || STATE.layers.wire_bat_tp || STATE.layers.wire_tp_esp
+  );
+
+  if (selectedHighlightBox) selectedHighlightBox.update();
+
+  const wrap = document.getElementById("viewport-wrap");
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  const labelsOverlay = document.getElementById("labels-overlay");
+  const linesSvg = document.getElementById("label-lines-svg");
+  const dimsOverlay = document.getElementById("dims-overlay");
+
+  // 1. Nhãn linh kiện 3D (tránh chồng chéo)
+  if (!STATE.layers.labels) {
+    labelsOverlay.innerHTML = "";
+    linesSvg.innerHTML = "";
+  } else {
+    const items = [];
+    partAnchors.forEach((a) => {
+      if (!STATE.layers[a.id]) return;
+      a.group.updateWorldMatrix(true, false);
+      const wp = a.localPos.clone().applyMatrix4(a.group.matrixWorld);
+      const proj = wp.clone().project(activeCamera);
+      if (proj.z > 1) return;
+      const ax = (proj.x * 0.5 + 0.5) * w;
+      const ay = (-proj.y * 0.5 + 0.5) * h;
+      items.push({ id: a.id, label: a.label, ax, ay, lx: ax + 24, ly: ay - 22 });
+    });
+
+    // Thuật toán đẩy tách nhãn khi trùng tọa độ 2D
+    const boxW = 104, boxH = 24;
+    for (let iter = 0; iter < 10; iter++) {
+      for (let i = 0; i < items.length; i++) {
+        for (let j = i + 1; j < items.length; j++) {
+          const A = items[i], B = items[j];
+          const dx = B.lx - A.lx;
+          const dy = B.ly - A.ly;
+          if (Math.abs(dx) < boxW && Math.abs(dy) < boxH) {
+            const pushY = (boxH - Math.abs(dy)) * 0.55 + 1.5;
+            if (dy >= 0) { A.ly -= pushY; B.ly += pushY; }
+            else { A.ly += pushY; B.ly -= pushY; }
+          }
+        }
+      }
+      items.forEach((it) => {
+        it.lx = Math.max(60, Math.min(w - 60, it.lx));
+        it.ly = Math.max(54, Math.min(h - 24, it.ly));
+      });
+    }
+
+    let htmlLabels = "";
+    let svgLines = "";
+    items.forEach((it) => {
+      svgLines += `<line x1="${it.ax.toFixed(1)}" y1="${it.ay.toFixed(1)}" x2="${it.lx.toFixed(1)}" y2="${it.ly.toFixed(1)}" stroke="#b87333" stroke-width="1.2" stroke-dasharray="3,2"/>` +
+                  `<circle cx="${it.ax.toFixed(1)}" cy="${it.ay.toFixed(1)}" r="2.8" fill="#b87333"/>`;
+      htmlLabels += `<div class="label-3d" data-part="${it.id}" style="left:${it.lx.toFixed(1)}px;top:${it.ly.toFixed(1)}px">${it.label}</div>`;
+    });
+    linesSvg.innerHTML = svgLines;
+    labelsOverlay.innerHTML = htmlLabels;
+
+    labelsOverlay.querySelectorAll(".label-3d").forEach((el) => {
+      el.addEventListener("click", () => {
+        const pid = el.dataset.part;
+        inspectMeta(CONFIG.components[pid], partGroupsById[pid]);
+      });
+    });
+  }
+
+  // 2. Nhãn đường kích thước 3D
+  if (!STATE.layers.dims) {
+    dimsOverlay.innerHTML = "";
+  } else {
+    let dimHtml = "";
+    dimAnchors.forEach((da) => {
+      const p = da.pos.clone().project(activeCamera);
+      if (p.z > 1) return;
+      const sx = (p.x * 0.5 + 0.5) * w;
+      const sy = (-p.y * 0.5 + 0.5) * h;
+      if (sx < 0 || sx > w || sy < 0 || sy > h) return;
+      dimHtml += `<div class="dim-badge" style="left:${sx.toFixed(1)}px;top:${sy.toFixed(1)}px">${da.text}</div>`;
+    });
+    dimsOverlay.innerHTML = dimHtml;
+  }
+}
+
+/* ============================================================================
+   12. BẢN VẼ KÍCH THƯỚC 2D 3 HÌNH CHIẾU (SVG TỪ CONFIG) — renderDrawings()
+   ============================================================================ */
+function renderDrawings() {
+  const f = CONFIG.frame;
+  const W = f.width, H = f.height, D = f.depth, d = STATE.rodDiameter, r = d / 2;
+  document.getElementById("drw-outer").textContent = `${fmtNum(W + d)} × ${fmtNum(H + d)} × ${fmtNum(D + d)}`;
+  document.getElementById("drw-inner").textContent = `${fmtNum(W - d)} × ${fmtNum(H - d)}`;
+
+  const C = CONFIG.components;
+  const scale = 4.2;
+
+  // Hàm tạo 1 hình chiếu SVG chuẩn kỹ thuật
+  function buildProjectionSVG(title, viewBoxW, viewBoxH, ox, oy, drawContentFn) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewBoxW} ${viewBoxH}" data-title="${title}">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#0369a1"/>
+        </marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#ffffff"/>
+      <g transform="translate(${ox}, ${oy})">
+        ${drawContentFn()}
+      </g>
+    </svg>`;
+  }
+
+  // 1. Hình chiếu Trước (Mặt phẳng XY, nhìn từ -Z)
+  const frontSVG = buildProjectionSVG("Hinh-chieu-truoc-XY", 340, 310, 95, 215, () => {
+    const s = scale;
+    let out = "";
+    // Linh kiện chiếu lên XY
+    // Pin LiPo
+    out += `<rect x="${C.battery.range.x[0]*s}" y="${-C.battery.range.y[1]*s}" width="${C.battery.size.w*s}" height="${C.battery.size.h*s}" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>`;
+    // Buzzer
+    out += `<rect x="${(C.buzzer.center.x-6)*s}" y="${-(C.buzzer.bottomY+C.buzzer.height)*s}" width="${12*s}" height="${9*s}" fill="#e2e8f0" stroke="#475569" stroke-width="1"/>`;
+    // TP4056
+    out += `<rect x="${C.tp4056.range.x[0]*s}" y="${-C.tp4056.range.y[1]*s}" width="${C.tp4056.size.w*s}" height="${4*s}" fill="#bfdbfe" stroke="#1d4ed8" stroke-width="1"/>`;
+    // ESP32
+    out += `<rect x="${C.esp32.range.x[0]*s}" y="${-C.esp32.range.y[1]*s}" width="${C.esp32.size.w*s}" height="${4.4*s}" fill="#e5e7eb" stroke="#111827" stroke-width="1"/>`;
+    // OLED
+    out += `<rect x="${(16-C.oled.pcb.w/2)*s}" y="${-(16+C.oled.pcb.h/2)*s}" width="${C.oled.pcb.w*s}" height="${C.oled.pcb.h*s}" fill="rgba(31,95,168,0.18)" stroke="#1f5fa8" stroke-dasharray="3,2" stroke-width="1.2"/>`;
+    out += `<text x="${16*s}" y="${-16*s}" font-size="10" font-weight="bold" fill="#1e3a8a" text-anchor="middle">OLED 27,3×27,8</text>`;
+    // TTP223 trên đỉnh
+    out += `<rect x="${C.touch.range.x[0]*s}" y="${-C.touch.range.y[1]*s}" width="${C.touch.size.w*s}" height="${C.touch.size.h*s}" fill="#fee2e2" stroke="#dc2626" stroke-width="1"/>`;
+    out += `<text x="${16*s}" y="${-35.5*s}" font-size="9" font-weight="bold" fill="#b91c1c" text-anchor="middle">TTP223</text>`;
+
+    // Khung đồng (phủ bì & tâm)
+    out += `<rect x="${-r*s}" y="${-(H+r)*s}" width="${(W+d)*s}" height="${(H+d)*s}" fill="none" stroke="#b87333" stroke-width="${Math.max(2, d*s)}"/>`;
+    // Các tầng ngang Y = 10, 20
+    [10, 20].forEach((yv) => {
+      out += `<line x1="0" y1="${-yv*s}" x2="${W*s}" y2="${-yv*s}" stroke="#b87333" stroke-width="${Math.max(1.6, d*s*0.8)}"/>`;
+    });
+    // Chân đế
+    [0, W].forEach((xv) => {
+      const dir = xv === 0 ? -1 : 1;
+      out += `<polyline points="${xv*s},0 ${xv*s},${f.legStraight*s} ${(xv+dir*f.legFoot)*s},${f.legStraight*s}" fill="none" stroke="#b87333" stroke-width="${Math.max(2, d*s)}"/>`;
+    });
+
+    // Đường kích thước
+    out += `<line x1="0" y1="${18*s}" x2="${W*s}" y2="${18*s}" stroke="#0369a1" stroke-width="1" marker-start="url(#arr)" marker-end="url(#arr)"/>`;
+    out += `<text x="${16*s}" y="${18*s + 13}" font-size="10" fill="#0369a1" text-anchor="middle">Tâm ${W} (Phủ bì ${fmtNum(W+d)})</text>`;
+
+    out += `<line x1="${-13*s}" y1="0" x2="${-13*s}" y2="${-H*s}" stroke="#0369a1" stroke-width="1" marker-start="url(#arr)" marker-end="url(#arr)"/>`;
+    out += `<text x="${-15*s}" y="${-16*s}" font-size="10" fill="#0369a1" text-anchor="end">Cao ${H}</text>`;
+
+    // Cao độ tầng Y
+    [0, 10, 20, 32].forEach((yv) => {
+      out += `<text x="${(W+4)*s}" y="${-yv*s + 3}" font-size="9" fill="#475569">Y=${yv}</text>`;
+    });
+    // Trục tọa độ
+    out += `<line x1="-22" y1="22" x2="10" y2="22" stroke="#dc2626" stroke-width="1.3" marker-end="url(#arr)"/>
+            <text x="14" y="25" font-size="9" font-weight="bold" fill="#dc2626">X</text>
+            <line x1="-22" y1="22" x2="-22" y2="-10" stroke="#16a34a" stroke-width="1.3" marker-end="url(#arr)"/>
+            <text x="-25" y="-13" font-size="9" font-weight="bold" fill="#16a34a">Y</text>`;
+    return out;
+  });
+
+  // 2. Hình chiếu Cạnh (Mặt phẳng ZY, nhìn từ bên phải +X)
+  const sideSVG = buildProjectionSVG("Hinh-chieu-canh-ZY", 380, 310, 75, 215, () => {
+    const s = scale;
+    let out = "";
+    // OLED
+    out += `<rect x="${C.oled.frontZ*s}" y="${-(16+C.oled.pcb.h/2)*s}" width="${C.oled.totalDepth*s}" height="${C.oled.pcb.h*s}" fill="#dbeafe" stroke="#1f5fa8" stroke-width="1"/>`;
+    out += `<text x="${3.5*s}" y="${-16*s}" font-size="8.5" fill="#1e3a8a" transform="rotate(-90 ${3.5*s} ${-16*s})" text-anchor="middle">OLED</text>`;
+    // Buzzer
+    out += `<rect x="${(C.buzzer.center.z-6)*s}" y="${-(C.buzzer.bottomY+C.buzzer.height)*s}" width="${12*s}" height="${9*s}" fill="#e2e8f0" stroke="#334155" stroke-width="1"/>`;
+    out += `<text x="${13*s}" y="${-5*s}" font-size="8.5" fill="#1e293b" text-anchor="middle">Buzzer</text>`;
+    // Pin LiPo
+    out += `<rect x="${C.battery.range.z[0]*s}" y="${-C.battery.range.y[1]*s}" width="${C.battery.size.d*s}" height="${C.battery.size.h*s}" fill="#bfdbfe" stroke="#2563eb" stroke-width="1"/>`;
+    out += `<text x="${36*s}" y="${-3.2*s}" font-size="9" font-weight="bold" fill="#1e40af" text-anchor="middle">Pin LiPo 3,7V</text>`;
+    // TP4056 + Micro-USB
+    out += `<rect x="${C.tp4056.range.z[0]*s}" y="${-C.tp4056.range.y[1]*s}" width="${C.tp4056.size.d*s}" height="${4*s}" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1"/>`;
+    out += `<text x="${40*s}" y="${-12.2*s}" font-size="9" font-weight="bold" fill="#1d4ed8" text-anchor="middle">TP4056</text>`;
+    // ESP32 + USB-C + Ăng-ten
+    out += `<rect x="${C.esp32.range.z[0]*s}" y="${-C.esp32.range.y[1]*s}" width="${C.esp32.size.d*s}" height="${4.4*s}" fill="#e5e7eb" stroke="#111827" stroke-width="1"/>`;
+    out += `<rect x="${C.esp32.antennaZ[0]*s}" y="${-C.esp32.range.y[1]*s}" width="${4.5*s}" height="${4.4*s}" fill="#fed7aa" stroke="#ea580c" stroke-width="1"/>`;
+    out += `<text x="${43*s}" y="${-22.3*s}" font-size="9" font-weight="bold" fill="#111827" text-anchor="middle">ESP32-C3</text>`;
+    // TTP223
+    out += `<rect x="${C.touch.range.z[0]*s}" y="${-C.touch.range.y[1]*s}" width="${C.touch.size.d*s}" height="${C.touch.size.h*s}" fill="#fee2e2" stroke="#dc2626" stroke-width="1"/>`;
+    out += `<text x="${26.5*s}" y="${-35.5*s}" font-size="9" font-weight="bold" fill="#b91c1c" text-anchor="middle">TTP223</text>`;
+
+    // Khung đồng ZY
+    out += `<rect x="${-r*s}" y="${-(H+r)*s}" width="${(D+d)*s}" height="${(H+d)*s}" fill="none" stroke="#b87333" stroke-width="${Math.max(2, d*s)}"/>`;
+    [10, 20].forEach((yv) => {
+      out += `<line x1="0" y1="${-yv*s}" x2="${D*s}" y2="${-yv*s}" stroke="#b87333" stroke-width="${Math.max(1.5, d*s*0.8)}"/>`;
+    });
+    // Thanh chống chéo (0,0) -> (53,32)
+    out += `<line x1="0" y1="0" x2="${D*s}" y2="${-H*s}" stroke="#b87333" stroke-dasharray="4,2" stroke-width="${Math.max(1.6, d*s*0.85)}"/>`;
+    // Điểm tròn thanh ngang các tầng
+    Object.entries(CONFIG.crossbars).forEach(([k, list]) => {
+      const yv = Number(k.replace("y", ""));
+      list.forEach((b) => {
+        out += `<circle cx="${b.z*s}" cy="${-yv*s}" r="${Math.max(2.3, r*s*1.2)}" fill="${b.insulate ? "#eab308" : "#b87333"}" stroke="#78350f" stroke-width="0.7"/>`;
+      });
+    });
+    // Chân đế
+    [0, D].forEach((zv) => {
+      const dir = zv === 0 ? -1 : 1;
+      out += `<polyline points="${zv*s},0 ${zv*s},${f.legStraight*s} ${(zv+dir*f.legFoot)*s},${f.legStraight*s}" fill="none" stroke="#b87333" stroke-width="${Math.max(2, d*s)}"/>`;
+    });
+
+    // Kích thước sâu 53
+    out += `<line x1="0" y1="${18*s}" x2="${D*s}" y2="${18*s}" stroke="#0369a1" stroke-width="1" marker-start="url(#arr)" marker-end="url(#arr)"/>`;
+    out += `<text x="${26.5*s}" y="${18*s + 13}" font-size="10" fill="#0369a1" text-anchor="middle">Sâu tâm ${D} (Phủ bì ${fmtNum(D+d)})</text>`;
+    out += `<text x="${-3*s}" y="${5*s}" font-size="9" fill="#0369a1" text-anchor="end">Chân ${f.legStraight}+${f.legFoot}</text>`;
+
+    // Trục Z, Y
+    out += `<line x1="-22" y1="22" x2="10" y2="22" stroke="#2563eb" stroke-width="1.3" marker-end="url(#arr)"/>
+            <text x="14" y="25" font-size="9" font-weight="bold" fill="#2563eb">Z</text>
+            <line x1="-22" y1="22" x2="-22" y2="-10" stroke="#16a34a" stroke-width="1.3" marker-end="url(#arr)"/>
+            <text x="-25" y="-13" font-size="9" font-weight="bold" fill="#16a34a">Y</text>`;
+    return out;
+  });
+
+  // 3. Hình chiếu Bằng / Trên (Mặt phẳng XZ, nhìn từ +Y xuống)
+  const topSVG = buildProjectionSVG("Hinh-chieu-tren-XZ", 380, 260, 75, 45, () => {
+    const s = scale;
+    let out = "";
+    // Các thanh ngang theo Z
+    const allZ = [
+      { z: 9, c: "#b87333" }, { z: 17, c: "#b87333" },
+      { z: 22.5, c: "#eab308" }, { z: 26, c: "#eab308" }, { z: 30, c: "#eab308" },
+      { z: 30.5, c: "#eab308" }, { z: 39, c: "#eab308" }, { z: 46, c: "#eab308" }, { z: 50, c: "#eab308" }
+    ];
+    allZ.forEach((item) => {
+      out += `<line x1="${item.z*s}" y1="0" x2="${item.z*s}" y2="${W*s}" stroke="${item.c}" stroke-width="1.4" stroke-dasharray="3,2"/>`;
+    });
+
+    // Pin LiPo
+    out += `<rect x="${C.battery.range.z[0]*s}" y="${C.battery.range.x[0]*s}" width="${C.battery.size.d*s}" height="${C.battery.size.w*s}" fill="rgba(74,120,181,0.18)" stroke="#2563eb" stroke-width="1"/>`;
+    // TP4056
+    out += `<rect x="${C.tp4056.range.z[0]*s}" y="${C.tp4056.range.x[0]*s}" width="${C.tp4056.size.d*s}" height="${C.tp4056.size.w*s}" fill="rgba(29,78,216,0.16)" stroke="#1d4ed8" stroke-width="1"/>`;
+    // ESP32
+    out += `<rect x="${C.esp32.range.z[0]*s}" y="${C.esp32.range.x[0]*s}" width="${C.esp32.size.d*s}" height="${C.esp32.size.w*s}" fill="rgba(20,20,20,0.12)" stroke="#111827" stroke-width="1"/>`;
+    out += `<text x="${43*s}" y="${16*s + 3}" font-size="9" font-weight="bold" fill="#111827" text-anchor="middle">ESP32 / TP4056</text>`;
+    // TTP223 trên cùng
+    out += `<rect x="${C.touch.range.z[0]*s}" y="${C.touch.range.x[0]*s}" width="${C.touch.size.d*s}" height="${C.touch.size.w*s}" fill="rgba(214,40,40,0.22)" stroke="#dc2626" stroke-width="1.2"/>`;
+    out += `<circle cx="${26.5*s}" cy="${16*s}" r="${5*s}" fill="#fff" stroke="#dc2626" stroke-width="1"/>`;
+    out += `<text x="${26.5*s}" y="${16*s + 3}" font-size="8" font-weight="bold" fill="#b91c1c" text-anchor="middle">TOUCH</text>`;
+    // Buzzer
+    out += `<circle cx="${13*s}" cy="${16*s}" r="${6*s}" fill="rgba(30,41,59,0.15)" stroke="#334155" stroke-width="1"/>`;
+    out += `<text x="${13*s}" y="${16*s + 3}" font-size="8" fill="#1e293b" text-anchor="middle">Buzzer</text>`;
+    // OLED
+    out += `<rect x="${1.5*s}" y="${(16-27.3/2)*s}" width="${4*s}" height="${27.3*s}" fill="#dbeafe" stroke="#1f5fa8" stroke-width="1"/>`;
+
+    // Khung đồng XZ
+    out += `<rect x="${-r*s}" y="${-r*s}" width="${(D+d)*s}" height="${(W+d)*s}" fill="none" stroke="#b87333" stroke-width="${Math.max(2, d*s)}"/>`;
+
+    // Kích thước
+    out += `<line x1="0" y1="${(W+8)*s}" x2="${D*s}" y2="${(W+8)*s}" stroke="#0369a1" stroke-width="1" marker-start="url(#arr)" marker-end="url(#arr)"/>`;
+    out += `<text x="${26.5*s}" y="${(W+8)*s + 13}" font-size="10" fill="#0369a1" text-anchor="middle">Sâu ${D} mm (Mặt trước Z=0 → Mặt sau Z=${D})</text>`;
+
+    out += `<line x1="${-8*s}" y1="0" x2="${-8*s}" y2="${W*s}" stroke="#0369a1" stroke-width="1" marker-start="url(#arr)" marker-end="url(#arr)"/>`;
+    out += `<text x="${-10*s}" y="${16*s}" font-size="10" fill="#0369a1" text-anchor="end">Rộng ${W}</text>`;
+
+    // Trục Z, X
+    out += `<line x1="-22" y1="-16" x2="10" y2="-16" stroke="#2563eb" stroke-width="1.3" marker-end="url(#arr)"/>
+            <text x="14" y="-13" font-size="9" font-weight="bold" fill="#2563eb">Z</text>
+            <line x1="-22" y1="-16" x2="-22" y2="16" stroke="#dc2626" stroke-width="1.3" marker-end="url(#arr)"/>
+            <text x="-25" y="26" font-size="9" font-weight="bold" fill="#dc2626">X</text>`;
+    return out;
+  });
+
+  document.getElementById("drawings-container").innerHTML = `
+    <div class="drawing-card"><h3>1. Hình chiếu Trước (Mặt phẳng XY — Z = 0)</h3>${frontSVG}</div>
+    <div class="drawing-card"><h3>2. Hình chiếu Cạnh (Mặt phẳng ZY — Nhìn từ phải)</h3>${sideSVG}</div>
+    <div class="drawing-card"><h3>3. Hình chiếu Bằng / Trên (Mặt phẳng XZ — Nhìn từ đỉnh)</h3>${topSVG}</div>
+  `;
+}
+
+// Tải file SVG gộp cả 3 hình chiếu
+function downloadCombinedSVG() {
+  const svgs = document.querySelectorAll("#drawings-container svg");
+  if (svgs.length < 3) return;
+  const combined = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="360" viewBox="0 0 1120 360">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <text x="20" y="24" font-family="sans-serif" font-size="15" font-weight="bold" fill="#1e293b">DASAI MOCHI DIY — BẢN VẼ KÍCH THƯỚC KHUNG ĐỒNG Ø${fmtNum(STATE.rodDiameter)} MM (32 × 32 × 53 MM)</text>
+  <g transform="translate(10, 38)">${svgs[0].innerHTML}</g>
+  <g transform="translate(360, 38)">${svgs[1].innerHTML}</g>
+  <g transform="translate(750, 38)">${svgs[2].innerHTML}</g>
+</svg>`;
+  const blob = new Blob([combined], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "dasai-mochi-ban-ve-kich-thuoc.svg";
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("Đã tải file dasai-mochi-ban-ve-kich-thuoc.svg");
+}
+
+/* ============================================================================
+   13. DỰNG CÁC BẢNG CẮT THANH, LINH KIỆN, ĐẤU DÂY, LẮP RÁP, LƯU Ý — renderTables()
+   ============================================================================ */
+function renderTables() {
+  document.getElementById("cut-dia-label").textContent = fmtNum(STATE.rodDiameter);
+  const { rows, baseTotal, diagLen, totalWithDiag } = computeCutList();
+
+  // 1. Bảng cắt thanh
+  let cutHtml = `<table>
+    <thead>
+      <tr>
+        <th>STT</th>
+        <th>Tên chi tiết</th>
+        <th>Số lượng</th>
+        <th>Chiều dài cắt (mm)</th>
+        <th>Thành tiền chiều dài (mm)</th>
+        <th>Ghi chú gia công</th>
+      </tr>
+    </thead>
+    <tbody>`;
+  rows.forEach((r, idx) => {
+    cutHtml += `<tr>
+      <td class="mono">${idx + 1}</td>
+      <td><strong>${r.name}</strong></td>
+      <td class="mono">${r.qty}</td>
+      <td class="mono">${fmtNum(r.cut)}</td>
+      <td class="mono">${fmtNum(r.qty * r.cut)}</td>
+      <td>${r.note}</td>
+    </tr>`;
+  });
+  cutHtml += `
+    <tr>
+      <td class="mono">11</td>
+      <td><strong>Thanh chống chéo mặt phải (tùy chọn)</strong></td>
+      <td class="mono">1</td>
+      <td class="mono">~${fmtNum(diagLen)}</td>
+      <td class="mono">~${fmtNum(diagLen)}</td>
+      <td>Từ (32, 0, 0) lên (32, 32, 53), vát chéo 2 đầu</td>
+    </tr>
+    <tr class="total-row">
+      <td colspan="4">TỔNG CHIỀU DÀI THANH CƠ BẢN (không tính thanh chéo)</td>
+      <td class="mono">${fmtNum(baseTotal)} mm (~${(baseTotal / 1000).toFixed(2).replace(".", ",")} m)</td>
+      <td>Cộng thêm ${fmtNum(diagLen)} mm nếu gắn thanh chéo (= ${fmtNum(totalWithDiag)} mm)</td>
+    </tr>
+    <tr class="total-row">
+      <td colspan="4">KHUYẾN NGHỊ MUA VẬT TƯ (dự phòng hao hụt cắt &amp; uốn)</td>
+      <td class="mono">~1.300 mm (1,3 m)</td>
+      <td>Đồng đỏ cứng hoặc đồng thau Ø${fmtNum(STATE.rodDiameter)} mm + ống co nhiệt Ø2,2 mm</td>
+    </tr>
+  </tbody></table>`;
+  document.getElementById("cutlist-table-wrap").innerHTML = cutHtml;
+
+  // 2. Bảng linh kiện
+  let partsHtml = `<table>
+    <thead>
+      <tr>
+        <th>Linh kiện</th>
+        <th>Kích thước (mm)</th>
+        <th>Tọa độ vị trí (mm)</th>
+        <th>Cách cố định</th>
+        <th>Lưu ý kỹ thuật</th>
+      </tr>
+    </thead>
+    <tbody>`;
+  Object.values(CONFIG.components).forEach((p) => {
+    const dimStr = p.size ? `${fmtNum(p.size.w)} × ${fmtNum(p.size.h)} × ${fmtNum(p.size.d)}` :
+                   p.pcb ? `PCB ${fmtNum(p.pcb.w)} × ${fmtNum(p.pcb.h)} (Dày ~${fmtNum(p.totalDepth)})` :
+                   `Ø${p.diameter} × cao ${p.height}`;
+    const posStr = p.range ? `X: ${fmtNum(p.range.x[0])}..${fmtNum(p.range.x[1])} | Y: ${fmtNum(p.range.y[0])}..${fmtNum(p.range.y[1])} | Z: ${fmtNum(p.range.z[0])}..${fmtNum(p.range.z[1])}` :
+                   p.center.y !== undefined ? `Tâm (${p.center.x}, ${p.center.y}), mặt kính Z = ${fmtNum(p.frontZ)}` :
+                   `Tâm X = ${p.center.x}, Z = ${p.center.z}, đáy Y = ${fmtNum(p.bottomY)}`;
+    partsHtml += `<tr>
+      <td><span class="swatch" style="display:inline-block;background:${p.colorHex};margin-right:6px;"></span><strong>${p.name}</strong></td>
+      <td class="mono">${dimStr}</td>
+      <td class="mono">${posStr}</td>
+      <td>${p.mount}</td>
+      <td>${p.note}</td>
+    </tr>`;
+  });
+  partsHtml += `</tbody></table>`;
+  document.getElementById("parts-table-wrap").innerHTML = partsHtml;
+
+  // 3. Bảng đấu dây
+  let wiresHtml = `<table>
+    <thead>
+      <tr>
+        <th>Nhóm dây</th>
+        <th>Từ chân</th>
+        <th>Đến chân</th>
+        <th>Màu dây</th>
+        <th>Linh kiện phụ &amp; Ghi chú</th>
+      </tr>
+    </thead>
+    <tbody>`;
+  CONFIG.wireGroups.forEach((wg) => {
+    wg.wires.forEach((w, idx) => {
+      wiresHtml += `<tr>
+        ${idx === 0 ? `<td rowspan="${wg.wires.length}"><strong>${wg.name}</strong></td>` : ""}
+        <td class="mono">${w.from}</td>
+        <td class="mono">${w.to}</td>
+        <td><strong>${w.colorName}</strong></td>
+        <td>${w.note}</td>
+      </tr>`;
+    });
+  });
+  wiresHtml += `</tbody></table>`;
+  document.getElementById("wires-table-wrap").innerHTML = wiresHtml;
+
+  // 4. Các bước lắp ráp
+  let stepsHtml = "";
+  CONFIG.assemblySteps.forEach((s) => {
+    stepsHtml += `<div class="step-card">
+      <div>
+        <div class="step-head">
+          <span class="step-num">${s.step}</span>
+          <span class="step-title">${s.title}</span>
+        </div>
+        <p class="step-desc">${s.desc}</p>
+      </div>
+      <div>
+        <button class="btn-sm primary" onclick="previewAssemblyStep(${s.step})">Xem bước này trong 3D</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById("assembly-steps-wrap").innerHTML = stepsHtml;
+
+  // 5. Lưu ý kỹ thuật
+  let notesHtml = "";
+  CONFIG.notes.forEach((n) => {
+    notesHtml += `<div class="note-box ${n.type}">
+      <h3>${n.title}</h3>
+      <ul>${n.items.map((it) => `<li>${it}</li>`).join("")}</ul>
+    </div>`;
+  });
+  document.getElementById("notes-wrap").innerHTML = notesHtml;
+}
+
+// Xem trực quan từng bước lắp ráp trong không gian 3D
+window.previewAssemblyStep = function(stepNum) {
+  const step = CONFIG.assemblySteps.find((s) => s.step === stepNum);
+  if (!step) return;
+
+  // Chuyển về tab Mô hình 3D
+  document.querySelector('[data-tab="3d"]').click();
+
+  // Cập nhật lớp hiển thị tương ứng bước này
+  const L = step.layers;
+  STATE.layers.frameMain = L.frameMain;
+  STATE.layers.y0 = L.y0;
+  STATE.layers.y10 = L.y10;
+  STATE.layers.y20 = L.y20;
+  STATE.layers.y32 = L.y32;
+  STATE.layers.legs = L.legs;
+  STATE.layers.diag = L.diag;
+  STATE.layers.solder = L.solder;
+  STATE.layers.sleeve = L.sleeve;
+
+  ["oled", "buzzer", "battery", "tp4056", "esp32", "touch"].forEach((pid) => {
+    STATE.layers[pid] = L.parts.includes(pid);
+  });
+  ["oled_esp", "touch_esp", "buzzer_esp", "bat_tp", "tp_esp"].forEach((wid) => {
+    STATE.layers[`wire_${wid}`] = L.wires.includes(wid);
+  });
+
+  syncCheckboxesFromState();
+  syncLayerVisibility();
+
+  // Gộp tầng nếu đang tách để xem chuẩn vị trí lắp
+  STATE.explodedTarget = 0;
+
+  // Mở thông tin bước lắp ráp trên Inspector Card
+  inspectMeta({
+    name: `Bước ${step.step}/10: ${step.title}`,
+    dims: "Hướng dẫn lắp ráp từng bước",
+    pos: "Khung đồng Dasai Mochi DIY",
+    mount: step.desc,
+    note: "Bấm các nút góc nhìn (Trước, Sau, Trên...) để quan sát rõ mối hàn và khe hở."
+  }, partGroupsById[step.highlight] || stepHighlightGroups[step.highlight] || null);
+
+  if (step.highlight === "oled") setPresetView("front");
+  else if (step.highlight === "esp32" || step.highlight === "wires") setPresetView("back");
+  else setPresetView("iso");
+};
+
+/* ============================================================================
+   14. BẢNG BẬT/TẮT LỚP & SỰ KIỆN GIAO DIỆN
+   ============================================================================ */
+function buildLayerCheckboxes() {
+  const frameDefs = [
+    { key: "frameMain", label: "Khung chính (2 vòng & 4 góc)", color: "#B87333" },
+    { key: "y0", label: "Thanh chống đáy (Y = 0)", color: "#B87333" },
+    { key: "y10", label: "Tầng TP4056 (Y = 10)", color: "#B87333" },
+    { key: "y20", label: "Tầng ESP32 (Y = 20)", color: "#B87333" },
+    { key: "y32", label: "Thanh chống đỉnh (Y = 32)", color: "#B87333" },
+    { key: "legs", label: "4 Chân đế (10 + 4 mm)", color: "#B87333" },
+    { key: "splayedLegs", label: "Kiểu chân xòe ~20°", color: "#d97706", isOption: true },
+    { key: "diag", label: "Thanh chống chéo (mặt phải)", color: "#B87333" },
+    { key: "solder", label: "Mối hàn bạc", color: "#C9CED6" },
+    { key: "sleeve", label: "Ống co nhiệt cách điện", color: "#E6B800" }
+  ];
+
+  const partDefs = Object.values(CONFIG.components).map((c) => ({
+    key: c.id,
+    label: c.name,
+    color: c.colorHex
+  }));
+
+  const wireDefs = CONFIG.wireGroups.map((w) => ({
+    key: `wire_${w.id}`,
+    label: `Dây ${w.name}`,
+    color: w.colorHex
+  }));
+
+  const helperDefs = [
+    { key: "grid", label: "Lưới nền & bóng đổ", color: "#94a3b8" },
+    { key: "labels", label: "Nhãn tên linh kiện 3D", color: "#b8621b" },
+    { key: "dims", label: "Đường kích thước trong 3D", color: "#0284c7" }
+  ];
+
+  function renderCheckboxList(containerId, list) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = list.map((item) => {
+      const checked = item.isOption ? STATE[item.key] : STATE.layers[item.key];
+      return `<label class="layer-item">
+        <span class="layer-item-left">
+          <span class="swatch" style="background:${item.color}"></span>
+          <span>${item.label}</span>
+        </span>
+        <input type="checkbox" data-layer-key="${item.key}" ${item.isOption ? 'data-is-option="1"' : ""} ${checked ? "checked" : ""}/>
+      </label>`;
+    }).join("");
+
+    el.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+      cb.addEventListener("change", () => {
+        const k = cb.dataset.layerKey;
+        if (cb.dataset.isOption) {
+          STATE[k] = cb.checked;
+          if (typeof THREE !== "undefined") {
+            rebuildAll3D();
+          }
+        } else {
+          STATE.layers[k] = cb.checked;
+          syncLayerVisibility();
+        }
+      });
+    });
+  }
+
+  renderCheckboxList("layers-frame", frameDefs);
+  renderCheckboxList("layers-parts", partDefs);
+  renderCheckboxList("layers-wires", wireDefs);
+  renderCheckboxList("layers-helpers", helperDefs);
+}
+
+function syncCheckboxesFromState() {
+  document.querySelectorAll("input[data-layer-key]").forEach((cb) => {
+    const k = cb.dataset.layerKey;
+    cb.checked = cb.dataset.isOption ? STATE[k] : STATE.layers[k];
+  });
+}
+
+function syncLayerVisibility() {
+  if (!scene) return;
+  Object.entries(frameGroupsByLayer).forEach(([k, meshes]) => {
+    const vis = !!STATE.layers[k];
+    meshes.forEach((m) => { m.visible = vis; });
+  });
+  Object.entries(partGroupsById).forEach(([id, grp]) => {
+    grp.visible = !!STATE.layers[id];
+  });
+  Object.entries(wireGroupsById).forEach(([id, grp]) => {
+    grp.visible = !!STATE.layers[`wire_${id}`];
+  });
+  if (gridGroup) gridGroup.visible = !!STATE.layers.grid;
+  if (dimGroup) dimGroup.visible = !!STATE.layers.dims;
+}
+
+function bindUIEvents() {
+  // Chuyển Tab
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+      btn.classList.add("active");
+      const tab = btn.dataset.tab;
+      document.getElementById(`panel-${tab}`).classList.add("active");
+      if (tab === "3d" && renderer) onWindowResize();
+    });
+  });
+
+  // Nút góc nhìn nhanh
+  document.querySelectorAll("[data-view]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("[data-view]").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      setPresetView(btn.dataset.view);
+    });
+  });
+
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    STATE.rodDiameter = CONFIG.frame.rodDiameter;
+    STATE.frameOpacity = 1.0;
+    STATE.explodedTarget = 0;
+    STATE.splayedLegs = false;
+    STATE.autoRotate = false;
+    document.getElementById("sl-opacity").value = 0;
+    document.getElementById("val-opacity").textContent = "0%";
+    document.getElementById("sl-diameter").value = STATE.rodDiameter;
+    document.getElementById("val-diameter").textContent = `${fmtNum(STATE.rodDiameter)} mm`;
+    document.getElementById("btn-autorotate").classList.remove("active");
+    clearSelection();
+    setPresetView("iso");
+    if (renderer) {
+      rebuildAll3D();
+    }
+    renderDrawings();
+    renderTables();
+    syncCheckboxesFromState();
+    showToast("Đã đặt lại góc nhìn và thông số mặc định");
+  });
+
+  document.getElementById("btn-autorotate").addEventListener("click", function() {
+    STATE.autoRotate = !STATE.autoRotate;
+    this.classList.toggle("active", STATE.autoRotate);
+  });
+
+  document.getElementById("btn-ortho").addEventListener("click", function() {
+    STATE.isOrtho = !STATE.isOrtho;
+    activeCamera = STATE.isOrtho ? orthoCamera : perspCamera;
+    this.classList.toggle("active", STATE.isOrtho);
+    showToast(STATE.isOrtho ? "Chế độ chiếu trực giao (Orthographic)" : "Chế độ phối cảnh (Perspective)");
+  });
+
+  document.getElementById("btn-measure").addEventListener("click", function() {
+    STATE.measureMode = !STATE.measureMode;
+    this.classList.toggle("active", STATE.measureMode);
+    document.getElementById("measure-banner").classList.toggle("visible", STATE.measureMode);
+    if (!STATE.measureMode) {
+      STATE.measurePoints = [];
+      disposeGroup(measureGroup);
+    } else {
+      renderMeasureVisuals();
+    }
+  });
+
+  document.getElementById("btn-clear-measure").addEventListener("click", () => {
+    STATE.measurePoints = [];
+    renderMeasureVisuals();
+  });
+
+  document.getElementById("insp-close").addEventListener("click", clearSelection);
+
+  // Thu gọn / mở bảng điều khiển
+  const sidebar = document.getElementById("sidebar");
+  const fab = document.getElementById("btn-toggle-sidebar");
+  fab.style.display = "none";
+  document.getElementById("btn-collapse-sidebar").addEventListener("click", () => {
+    sidebar.classList.add("collapsed");
+    fab.style.display = "block";
+    setTimeout(onWindowResize, 230);
+  });
+  fab.addEventListener("click", () => {
+    sidebar.classList.remove("collapsed");
+    fab.style.display = "none";
+    setTimeout(onWindowResize, 230);
+  });
+
+  // Thanh trượt Làm mờ khung
+  document.getElementById("sl-opacity").addEventListener("input", function() {
+    const pct = Number(this.value);
+    document.getElementById("val-opacity").textContent = `${pct}%`;
+    STATE.frameOpacity = Math.max(0.05, 1 - pct / 100);
+    copperMaterials.forEach((m) => {
+      m.transparent = STATE.frameOpacity < 1;
+      m.opacity = STATE.frameOpacity;
+      m.needsUpdate = true;
+    });
+  });
+
+  // Thanh trượt Độ dày ống đồng
+  document.getElementById("sl-diameter").addEventListener("input", function() {
+    STATE.rodDiameter = Number(this.value);
+    document.getElementById("val-diameter").textContent = `${fmtNum(STATE.rodDiameter)} mm`;
+    if (renderer) {
+      rebuildAll3D();
+    }
+    renderDrawings();
+    renderTables();
+  });
+
+  // Thanh trượt Tách tầng & nút Tách hết / Gộp lại
+  document.getElementById("sl-explode").addEventListener("input", function() {
+    const val = Number(this.value) / 100;
+    STATE.explode = val;
+    STATE.explodedTarget = val;
+    document.getElementById("val-explode").textContent = `${this.value}%`;
+  });
+
+  document.getElementById("btn-explode-toggle").addEventListener("click", () => {
+    STATE.explodedTarget = STATE.explodedTarget > 0.5 ? 0 : 1;
+  });
+
+  // Nút tải SVG & sao chép bảng cắt thanh
+  document.getElementById("btn-download-svg").addEventListener("click", downloadCombinedSVG);
+  document.getElementById("btn-copy-cutlist").addEventListener("click", () => {
+    const { rows, baseTotal, diagLen, totalWithDiag } = computeCutList();
+    const lines = [
+      "STT\tTên chi tiết\tSố lượng\tChiều dài cắt (mm)\tTổng (mm)\tGhi chú",
+      ...rows.map((r, i) => `${i + 1}\t${r.name}\t${r.qty}\t${fmtNum(r.cut)}\t${fmtNum(r.qty * r.cut)}\t${r.note}`),
+      `11\tThanh chống chéo (tùy chọn)\t1\t~${fmtNum(diagLen)}\t~${fmtNum(diagLen)}\tTừ (32,0,0) lên (32,32,53)`,
+      `TỔNG CƠ BẢN:\t${fmtNum(baseTotal)} mm (~${(baseTotal/1000).toFixed(2)} m) | Có thanh chéo: ${fmtNum(totalWithDiag)} mm | Khuyến nghị mua: ~1,3 m`
+    ];
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      showToast("Đã sao chép bảng cắt thanh vào bộ nhớ tạm!");
+    }).catch(() => {
+      showToast("Không thể truy cập clipboard tự động, vui lòng bôi đen để sao chép.");
+    });
+  });
+}
+
+function onWindowResize() {
+  if (!renderer) return;
+  const wrap = document.getElementById("viewport-wrap");
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  if (w <= 0 || h <= 0) return;
+  perspCamera.aspect = w / h;
+  perspCamera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  updateCameraPosition(true);
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+/* ============================================================================
+   15. VÒNG LẶP RENDER 60 FPS & KHỞI CHẠY ỨNG DỤNG
+   ============================================================================ */
+function animate() {
+  requestAnimationFrame(animate);
+  if (!renderer) return;
+  updateCameraPosition(false);
+  updateExplodeAndOverlays();
+  renderer.render(scene, activeCamera);
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  buildLayerCheckboxes();
+  renderDrawings();
+  renderTables();
+  bindUIEvents();
+  const ok = initThree();
+  if (ok) {
+    setPresetView("iso");
+    updateCameraPosition(true);
+    animate();
+  }
+});
+</script>
+</body>
+</html>
