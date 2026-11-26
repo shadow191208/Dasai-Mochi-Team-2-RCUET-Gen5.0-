@@ -195,12 +195,10 @@ Thứ tự section: Hero → Giới thiệu → **01** Chức năng → **02** C
 
 ## Ghi công và bản quyền
 
-- **The Mochi (firmware, công cụ nạp, trang thiết lập, GIF Maker):** do **Huykhong** phát triển, xem https://themochi.huykhong.com/
-- **ChronosESP / ứng dụng Chronos:** tác giả **fbiego**.
-- **Sơ đồ đấu nối tổng hợp:** bạn **Văn Hưng** (mạch 4.1, 4.2) và bạn **Nhân Data** (mạch 5).
-- **Cộng đồng:** nhóm Facebook "Nạn nhân của Dasai Mochi", https://www.facebook.com/groups/2442849046100292
-- Dự án này **không lưu hoặc phân phối firmware**; mọi liên kết nạp firmware trỏ về trang chính thức của tác giả.
-- Nội dung hướng dẫn trong repo được viết lại bằng lời riêng dựa trên tài liệu công khai của dự án. Nếu dùng lại hình ảnh của người khác, hãy ghi nguồn và xin phép.
+- **Nguyễn Thị Thu (Lead):** Hướng dẫn mọi người, chỉ huy nhóm, chuẩn bị nội dung nghiên cứu.
+- **Nguyễn Bảo Nam (Secretary):** Lên ý tưởng, đề xuất dự án, đưa ra tài nguyên và chủ trì dự án (hàn, nạp firmware, hướng dẫn mọi người làm quen với hàn thiếc...); chuẩn bị thiết bị (mua mới và cung cấp thiết bị có sẵn của bản thân cho nhóm); chuẩn bị web hướng dẫn mọi người thuyết trình; thiết kế mô hình 3D dự án.
+- **Nguyễn Nhật Nam & Phạm Đức Hiếu:** Hàn mạch, làm slide thuyết trình.
+- **Nguyễn Văn Việt Anh:** Hỗ trợ hậu cần.
 
 ### Giấy phép
 
